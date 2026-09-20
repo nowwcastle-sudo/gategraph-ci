@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { parseDocument } from 'yaml';
+import { expandStaticMatrix } from './static-matrix.mjs';
 
 const ANALYZER = 'gategraph-ci';
 const ANALYZER_VERSION = '0.2.0-experimental.1';
@@ -11,7 +12,6 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const BRANCH_REF = /^refs\/heads\/[A-Za-z0-9._\-\/]+$/;
 const SAFE_ENDPOINT = /^repos\/[A-Za-z0-9._~%+?=&\-/]+$/;
 const SAFE_POLICY_EVIDENCE_ID = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,255}$/;
-const MATRIX_NAME_EXPRESSION = /\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}/g;
 const MAX_WORKFLOW_BYTES = 1024 * 1024;
 const MAX_AUDIT_WORKFLOW_BYTES = 4 * MAX_WORKFLOW_BYTES;
 const MAX_JOBS_PER_WORKFLOW = 128;
@@ -528,55 +528,15 @@ function normalizedJob(workflowPath, jobId, job, budget) {
   if (!isNonemptyString(declaredName)) return null;
   if (declaredName.length > MAX_JOB_NAME_LENGTH) return RESOURCE_LIMIT_EXCEEDED;
 
-  const expressions = [...declaredName.matchAll(MATRIX_NAME_EXPRESSION)];
-  const expressionKeys = [...new Set(expressions.map((match) => match[1]))];
-  let checkNames;
-  if (expressions.length === 0) {
-    if (declaredName.includes('${{') || Object.hasOwn(job, 'strategy')) return null;
-    if (budget.expandedChars + declaredName.length > MAX_AUDIT_EXPANDED_CHARS) return RESOURCE_LIMIT_EXCEEDED;
-    budget.expandedChars += declaredName.length;
-    checkNames = [declaredName];
-  } else {
-    if (expressionKeys.length !== 1) return null;
-    if (
-      !isPlainObject(job.strategy) ||
-      Object.keys(job.strategy).some((key) => key !== 'matrix') ||
-      !isPlainObject(job.strategy.matrix) ||
-      Object.keys(job.strategy.matrix).length !== 1 ||
-      !Object.hasOwn(job.strategy.matrix, expressionKeys[0])
-    ) {
-      return null;
-    }
-    const matrixValues = job.strategy.matrix[expressionKeys[0]];
-    if (
-      !Array.isArray(matrixValues) ||
-      matrixValues.length === 0 ||
-      matrixValues.some((item) => !['string', 'number', 'boolean'].includes(typeof item))
-    ) {
-      return null;
-    }
-    if (matrixValues.length > MAX_MATRIX_VALUES) return RESOURCE_LIMIT_EXCEEDED;
-    const replacementLengths = matrixValues.map((item) => String(item).length);
-    if (replacementLengths.some((length) => length > MAX_MATRIX_VALUE_LENGTH)) return RESOURCE_LIMIT_EXCEEDED;
-    const unchangedLength = declaredName.length - expressions.reduce((sum, match) => sum + match[0].length, 0);
-    const expandedLengths = replacementLengths.map((length) => unchangedLength + expressions.length * length);
-    const expandedTotal = expandedLengths.reduce((sum, length) => sum + length, 0);
-    if (
-      expandedLengths.some((length) => length > MAX_EXPANDED_NAME_LENGTH) ||
-      budget.expandedChars + expandedTotal > MAX_AUDIT_EXPANDED_CHARS
-    ) return RESOURCE_LIMIT_EXCEEDED;
-    budget.expandedChars += expandedTotal;
-    checkNames = matrixValues.map((item) => declaredName.replace(
-      MATRIX_NAME_EXPRESSION,
-      (match, key) => (key === expressionKeys[0] ? String(item) : match),
-    ));
-    if (
-      checkNames.some((name) => !isNonemptyString(name) || name.includes('${{')) ||
-      new Set(checkNames).size !== checkNames.length
-    ) {
-      return null;
-    }
-  }
+  const expanded = expandStaticMatrix({ name: declaredName, ...(Object.hasOwn(job, 'strategy') ? { strategy: job.strategy } : {}) }, {
+    maxValues: MAX_MATRIX_VALUES, maxValueLength: MAX_MATRIX_VALUE_LENGTH,
+    maxNameLength: MAX_JOB_NAME_LENGTH, maxExpandedNameLength: MAX_EXPANDED_NAME_LENGTH,
+    maxExpandedChars: MAX_AUDIT_EXPANDED_CHARS,
+  }, budget);
+  if (expanded.error === 'resource-limit') return RESOURCE_LIMIT_EXCEEDED;
+  if (expanded.error) return null;
+  const { cells } = expanded;
+  const checkNames = cells.map((cell) => cell.checkName);
 
   let needs = [];
   if (Object.hasOwn(job, 'needs')) {
@@ -596,7 +556,7 @@ function normalizedJob(workflowPath, jobId, job, budget) {
     condition = 'always()';
   }
 
-  return { workflowPath, jobId, checkNames, needs, condition };
+  return { workflowPath, jobId, checkNames, cells, needs, condition };
 }
 
 function validateDag(jobs) {
@@ -1052,7 +1012,7 @@ export async function auditControlPlane(input) {
   const instancesByCheckName = new Map();
   for (const workflow of workflows) {
     for (const job of workflow.jobs) {
-      for (const checkName of job.checkNames) {
+      for (const { checkName, axes } of job.cells) {
         const observed = runEvidence.checkByName.get(checkName);
         if (!observed || observed.workflowPath !== workflow.path || instancesByCheckName.has(checkName)) {
           return collectionError(
@@ -1062,7 +1022,7 @@ export async function auditControlPlane(input) {
             { workflowPath: workflow.path, unresolvedPremises: ['JOB_CHECK_JOIN_UNRESOLVED'] },
           );
         }
-        const instance = { workflow, job, checkName, check: observed };
+        const instance = { workflow, job, checkName, axes, check: observed };
         jobInstances.push(instance);
         instancesByCheckName.set(checkName, instance);
       }
