@@ -1,0 +1,26 @@
+name: aggregate omission repro
+
+on:
+  pull_request:
+
+jobs:
+  voting-test:
+    name: Voting test
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 0
+
+  unrelated-test:
+    name: Unrelated test
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 0
+
+  check:
+    name: check
+    if: always()
+    needs:
+      - unrelated-test
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 0

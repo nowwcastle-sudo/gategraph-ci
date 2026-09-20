@@ -1,0 +1,16 @@
+{
+  "jobs": {
+    "voting-test": {
+      "mergePolicy": "voting"
+    },
+    "unrelated-test": {
+      "mergePolicy": "voting"
+    }
+  },
+  "gates": {
+    ".github/workflows/ci.yml/check": {
+      "failurePropagation": "all-needs",
+      "evidence": "aggregate-omission-fixture-check-v1"
+    }
+  }
+}

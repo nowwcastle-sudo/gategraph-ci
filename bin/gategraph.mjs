@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+
+import { pathToFileURL } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { auditControlPlane } from '../src/audit-control-plane.mjs';
+import { collectWithGh } from '../src/gh-adapter.mjs';
+import { createDemoInput, DEMO_SCENARIOS } from '../src/demo-evidence.mjs';
+import { readAuthoredPolicy, policyMatchesRequest, createPolicyErrorInput, applyAuthoredPolicy } from '../src/policy-input.mjs';
+
+const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const SHA = /^[0-9a-f]{40}$/i;
+const BRANCH_REF = /^refs\/heads\/[A-Za-z0-9._\-/]+$/;
+const RUN_ID = /^[1-9][0-9]*$/;
+const USAGE = 'Usage: gategraph audit --repo owner/name --sha 40-hex-commit\n';
+const DEMO_USAGE = 'Usage: gategraph demo [--scenario finding|policy-review|unknown|collection-error]\n';
+const HELP = [
+  'GateGraph CI - experimental, read-only merge-gate analysis', '',
+  'First task: gategraph demo',
+  'The demo uses synthetic fixtures through the real audit core.',
+  'Its runtime needs no credentials, network, GitHub CLI, or source checkout.',
+  'Default demo result: finding; exit 2 is expected.', '',
+  DEMO_USAGE.trimEnd(), USAGE.trimEnd(),
+  'Usage: gategraph --help', 'Usage: gategraph --version', '',
+  'Audit and demo write one JSON report to stdout.',
+  'Help and version write text to stdout without collecting evidence.',
+  'Status exits: unknown=0, finding=2, policy-review=3, collection-error=4.',
+  'Usage errors and unexpected failures exit 1. Unknown is not a safety claim.',
+  'Live audits require GitHub CLI authentication and read permissions.',
+  'Audit options may be reordered; --run-id ID is repeatable and --target-ref REF asserts the observed target.',
+  'Explicit selection records excluded runs/workflows; all active required contexts still apply.',
+  'Optional --policy-file FILE requires --target-ref and --run-id; it binds reviewed policy to the observed run attempt.',
+  'Authored policy is an operator assertion, not authenticated maintainer approval. Retain its evidence.',
+  'Never mark all-needs propagation from dependency ancestry alone.',
+  'GateGraph does not execute workflows or change GitHub state.', '',
+].join('\n');
+const EXIT_BY_STATUS = new Map([
+  ['unknown', 0],
+  ['finding', 2],
+  ['policy-review', 3],
+  ['collection-error', 4],
+]);
+
+function parseCommand(argv) {
+  if (!Array.isArray(argv) || !argv.every((value) => typeof value === 'string')) return null;
+  if ((argv.length === 1 && argv[0] === '--help') ||
+    (argv.length === 2 && ['demo', 'audit'].includes(argv[0]) && argv[1] === '--help')) {
+    return { kind: 'help' };
+  }
+  if (argv.length === 1 && argv[0] === '--version') return { kind: 'version' };
+  if (argv[0] === 'demo') {
+    const scenario = argv.length === 1 ? 'finding' : argv[2];
+    if ((argv.length === 1 || (argv.length === 3 && argv[1] === '--scenario')) &&
+      DEMO_SCENARIOS.includes(scenario)) return { kind: 'demo', scenario };
+    return null;
+  }
+  if (argv[0] !== 'audit' || argv.length % 2 !== 1) return null;
+  const options = new Map();
+  const runIds = [];
+  for (let index = 1; index < argv.length; index += 2) {
+    const option = argv[index];
+    const value = argv[index + 1];
+    if (value.startsWith('--')) return null;
+    if (!['--repo', '--sha', '--run-id', '--target-ref', '--policy-file'].includes(option)) return null;
+    if (option === '--run-id') {
+      if (!RUN_ID.test(value) || !Number.isSafeInteger(Number(value)) || runIds.includes(value)) return null;
+      runIds.push(value);
+    } else {
+      if (options.has(option)) return null;
+      options.set(option, value);
+    }
+  }
+  if (!options.has('--repo') || !REPOSITORY.test(options.get('--repo')) ||
+    !options.has('--sha') || !SHA.test(options.get('--sha')) ||
+    (options.has('--target-ref') && !BRANCH_REF.test(options.get('--target-ref')))) return null;
+  if (options.has('--policy-file') && (!options.get('--policy-file') || !runIds.length || !options.has('--target-ref'))) return null;
+  return { kind: 'audit', ...(options.has('--policy-file') ? { policyFile: options.get('--policy-file') } : {}), coordinate: {
+    repository: options.get('--repo'), sha: options.get('--sha'),
+    ...(runIds.length ? { runIds: [...runIds].sort() } : {}),
+    ...(options.has('--target-ref') ? { targetRef: options.get('--target-ref') } : {}),
+  } };
+}
+
+/**
+ * Run the GateGraph CLI with injectable orchestration dependencies.
+ *
+ * @param {string[]} argv
+ * @param {object} dependencies
+ * @returns {Promise<number>}
+ */
+export async function runCli(argv, dependencies = {}) {
+  const collector = dependencies.collectWithGh ?? collectWithGh;
+  const audit = dependencies.auditControlPlane ?? auditControlPlane;
+  const stdout = dependencies.stdout ?? process.stdout;
+  const stderr = dependencies.stderr ?? process.stderr;
+
+  const command = parseCommand(argv);
+  if (!command) {
+    stderr.write(argv?.[0] === 'demo' ? DEMO_USAGE : USAGE);
+    return 1;
+  }
+
+  try {
+    if (command.kind === 'help') {
+      stdout.write(HELP);
+      return 0;
+    }
+    if (command.kind === 'version') {
+      const { name, version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+      stdout.write(`${name} ${version}\n`);
+      return 0;
+    }
+    let input;
+    if (command.kind === 'demo') input = createDemoInput(command.scenario);
+    else if (command.policyFile !== undefined) {
+      const document = await readAuthoredPolicy(command.policyFile);
+      if (document === null) input = createPolicyErrorInput(command.coordinate, 'POLICY_INPUT_INVALID');
+      else if (!policyMatchesRequest(document, command.coordinate)) {
+        input = createPolicyErrorInput(command.coordinate, 'POLICY_COORDINATE_MISMATCH');
+      } else {
+        input = applyAuthoredPolicy(await collector({ ...command.coordinate, requireRunAttempt: true }), document);
+      }
+    } else input = await collector(command.coordinate);
+    const report = await audit(input);
+    const exitCode = EXIT_BY_STATUS.get(report?.status);
+    if (exitCode === undefined) throw new TypeError('unsupported report status');
+    stdout.write(`${JSON.stringify(report)}\n`);
+    return exitCode;
+  } catch {
+    stderr.write('INTERNAL_ERROR\n');
+    return 1;
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = await runCli(process.argv.slice(2));
+}

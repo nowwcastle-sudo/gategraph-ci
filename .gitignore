@@ -1,0 +1,5 @@
+.swe-cycle/
+.superpowers/
+.worktrees/
+node_modules/
+*.tgz

@@ -1,0 +1,1154 @@
+[
+  {
+    "id": "GG-01",
+    "sourceCoordinate": {
+      "repository": "pydantic/pydantic",
+      "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+      "rulesetId": "9552763",
+      "runId": "33855560391"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "pydantic/pydantic@c23cb86ef197693fc016437614f174252a3d189a",
+        "repository": "pydantic/pydantic",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "text": "name: CI\non: pull_request\njobs:\n  lint:\n    name: lint\n    runs-on: ubuntu-latest\n    steps: []\n  test-typechecking-integration:\n    name: Typechecking integration tests\n    runs-on: ubuntu-latest\n    steps: []\n  check:\n    name: check\n    needs: [lint]\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 9552763,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "check",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "pull_request",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "runId": "33855560391",
+          "checkRuns": [
+            {
+              "name": "lint",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Typechecking integration tests",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "check",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/ci.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/ci.yml",
+            "jobId": "test-typechecking-integration",
+            "mergePolicy": "voting"
+          }
+        ],
+        "gates": {
+          ".github/workflows/ci.yml/check": {
+            "failurePropagation": "all-needs",
+            "evidence": "GG-01-run-33855560391-check"
+          }
+        }
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/ci.yml",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33855560391",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "finding",
+    "expectedReasonOrProducer": "test-typechecking-integration"
+  },
+  {
+    "id": "GG-02",
+    "sourceCoordinate": {
+      "repository": "pydantic/pydantic",
+      "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+      "rulesetId": "9552763",
+      "runId": "33855560391"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "pydantic/pydantic@c23cb86ef197693fc016437614f174252a3d189a",
+        "repository": "pydantic/pydantic",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "text": "name: CI\non: pull_request\njobs:\n  lint:\n    name: lint\n    runs-on: ubuntu-latest\n    steps: []\n  test-typing-extensions:\n    name: Test typing-extensions ${{ matrix.python-version }}\n    strategy:\n      matrix:\n        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14', '3.15']\n    runs-on: ubuntu-latest\n    steps: []\n  check:\n    name: check\n    needs: [lint]\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 9552763,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "check",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "pull_request",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "runId": "33855560391",
+          "checkRuns": [
+            {
+              "name": "lint",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.10",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.11",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.12",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.13",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.14",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Test typing-extensions 3.15",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "check",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/ci.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/ci.yml",
+            "jobId": "test-typing-extensions",
+            "mergePolicy": "voting"
+          }
+        ],
+        "gates": {
+          ".github/workflows/ci.yml/check": {
+            "failurePropagation": "all-needs",
+            "evidence": "GG-02-run-33855560391-check"
+          }
+        }
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/ci.yml",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33855560391",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "finding",
+    "expectedReasonOrProducer": "test-typing-extensions"
+  },
+  {
+    "id": "GG-03",
+    "sourceCoordinate": {
+      "repository": "pydantic/pydantic",
+      "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+      "rulesetId": "9552763",
+      "runId": "33855560391"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "pydantic/pydantic@c23cb86ef197693fc016437614f174252a3d189a",
+        "repository": "pydantic/pydantic",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "text": "name: CI\non: pull_request\njobs:\n  lint:\n    name: lint\n    runs-on: ubuntu-latest\n    steps: []\n  core-bench:\n    name: core / Run Rust benchmarks\n    runs-on: ubuntu-latest\n    steps: []\n  core-test-msrv:\n    name: core / Test MSRV\n    runs-on: ubuntu-latest\n    steps: []\n  check:\n    name: check\n    needs: [lint]\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 9552763,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "check",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "pull_request",
+          "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+          "runId": "33855560391",
+          "checkRuns": [
+            {
+              "name": "lint",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "core / Run Rust benchmarks",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "core / Test MSRV",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "check",
+              "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/ci.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/ci.yml",
+            "jobId": "core-bench",
+            "mergePolicy": "voting"
+          },
+          {
+            "workflowPath": ".github/workflows/ci.yml",
+            "jobId": "core-test-msrv",
+            "mergePolicy": "voting"
+          }
+        ],
+        "gates": {
+          ".github/workflows/ci.yml/check": {
+            "failurePropagation": "all-needs",
+            "evidence": "GG-03-run-33855560391-check"
+          }
+        }
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/ci.yml",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33855560391",
+            "sha": "c23cb86ef197693fc016437614f174252a3d189a",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "finding",
+    "expectedReasonOrProducer": [
+      "core-bench",
+      "core-test-msrv"
+    ]
+  },
+  {
+    "id": "GG-04",
+    "sourceCoordinate": {
+      "repository": "modelcontextprotocol/typescript-sdk",
+      "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+      "rulesetId": "3187922",
+      "runId": "33849503009"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "modelcontextprotocol/typescript-sdk@5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+        "repository": "modelcontextprotocol/typescript-sdk",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/main.yml",
+          "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+          "text": "name: main\non: [pull_request, push]\njobs:\n  build:\n    name: build\n    runs-on: ubuntu-latest\n    steps: []\n  test:\n    name: test (${{ matrix.node }})\n    strategy:\n      matrix:\n        node: [20, 22, 24]\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 3187922,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "build",
+                "integrationId": 15368
+              },
+              {
+                "context": "test (20)",
+                "integrationId": 15368
+              },
+              {
+                "context": "test (24)",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "push",
+          "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+          "runId": "33849503009",
+          "checkRuns": [
+            {
+              "name": "build",
+              "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "test (20)",
+              "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "test (22)",
+              "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "test (24)",
+              "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/main.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/main.yml",
+            "jobId": "test",
+            "mergePolicy": "voting"
+          }
+        ]
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/main.yml",
+            "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33849503009",
+            "sha": "5119ee7fd7790e335a3fb60ef36f85334e2a6326",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "finding",
+    "expectedReasonOrProducer": "test (22)"
+  },
+  {
+    "id": "GG-05",
+    "sourceCoordinate": {
+      "repository": "zed-industries/zed",
+      "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+      "rulesetId": "16420151",
+      "runId": "33875183647",
+      "event": "merge_group"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "zed-industries/zed@620efaa5c7821901d97b81e863a72d0bfd1e289d",
+        "repository": "zed-industries/zed",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/run_tests.yml",
+          "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+          "text": "name: run tests\non: [pull_request, merge_group]\njobs:\n  orchestrate:\n    name: orchestrate\n    runs-on: ubuntu-latest\n    steps: []\n  unit:\n    name: unit\n    runs-on: ubuntu-latest\n    steps: []\n  check_postgres_and_protobuf_migrations:\n    name: check_postgres_and_protobuf_migrations\n    needs: [orchestrate]\n    runs-on: ubuntu-latest\n    steps: []\n  tests_pass:\n    name: tests_pass\n    if: always()\n    needs: [orchestrate, unit]\n    env:\n      UNIT_RESULT: ${{ needs.unit.result }}\n    runs-on: ubuntu-latest\n    steps:\n      - run: test \"$UNIT_RESULT\" = success\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 16420151,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "tests_pass",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "merge_group",
+          "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+          "runId": "33875183647",
+          "checkRuns": [
+            {
+              "name": "orchestrate",
+              "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "unit",
+              "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "check_postgres_and_protobuf_migrations",
+              "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "tests_pass",
+              "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/run_tests.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/run_tests.yml",
+            "jobId": "check_postgres_and_protobuf_migrations",
+            "mergePolicy": "voting"
+          }
+        ],
+        "gates": {
+          ".github/workflows/run_tests.yml/tests_pass": {
+            "failurePropagation": "all-needs",
+            "evidence": "GG-05-run-33875183647-tests-pass"
+          }
+        }
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/run_tests.yml",
+            "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33875183647",
+            "sha": "620efaa5c7821901d97b81e863a72d0bfd1e289d",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "finding",
+    "expectedReasonOrProducer": "check_postgres_and_protobuf_migrations"
+  },
+  {
+    "id": "CONTROL-UV-ADVISORY",
+    "sourceCoordinate": {
+      "repository": "astral-sh/uv",
+      "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+      "runId": "33875545302"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "astral-sh/uv@a600759b93304d64c9e0c003b6559841982d5b1d",
+        "repository": "astral-sh/uv",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "a600759b93304d64c9e0c003b6559841982d5b1d"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+          "text": "name: CI\non: pull_request\njobs:\n  lint:\n    name: lint\n    runs-on: ubuntu-latest\n    steps: []\n  security-review:\n    name: review / security review\n    runs-on: ubuntu-latest\n    steps: []\n  all-required:\n    name: all required jobs passed\n    needs: [lint]\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 1,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "all required jobs passed",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "pull_request",
+          "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+          "runId": "33875545302",
+          "checkRuns": [
+            {
+              "name": "lint",
+              "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "review / security review",
+              "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "all required jobs passed",
+              "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/ci.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": [
+          {
+            "workflowPath": ".github/workflows/ci.yml",
+            "jobId": "security-review",
+            "mergePolicy": "advisory"
+          }
+        ],
+        "gates": {
+          ".github/workflows/ci.yml/all-required": {
+            "failurePropagation": "all-needs",
+            "evidence": "CONTROL-UV-run-33875545302-all-required"
+          }
+        }
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/ci.yml",
+            "sha": "a600759b93304d64c9e0c003b6559841982d5b1d"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33875545302",
+            "sha": "a600759b93304d64c9e0c003b6559841982d5b1d",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "unknown",
+    "expectedReasonOrProducer": "EXPLICIT_ADVISORY"
+  },
+  {
+    "id": "CONTROL-HA-UNKNOWN",
+    "sourceCoordinate": {
+      "repository": "home-assistant/core",
+      "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+      "runId": "33880435717"
+    },
+    "input": {
+      "analysis": {
+        "analyzer": "gategraph-ci",
+        "version": "0.2.0-experimental.1",
+        "contract": "gategraph-audit/v1",
+        "analyzedAt": "2026-09-05T00:00:00.000Z"
+      },
+      "subject": {
+        "kind": "github",
+        "id": "home-assistant/core@7802271b6c7f3e5968f824434fe02893e345c7ad",
+        "repository": "home-assistant/core",
+        "ref": "refs/heads/main",
+        "defaultBranchRef": "refs/heads/main",
+        "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad"
+      },
+      "workflows": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+          "text": "name: CI\non: pull_request\njobs:\n  collect:\n    name: Collect information\n    runs-on: ubuntu-latest\n    steps: []\n  requirements:\n    name: Check all requirements\n    runs-on: ubuntu-latest\n    steps: []\n  hassfest:\n    name: Check hassfest\n    runs-on: ubuntu-latest\n    steps: []\n  pytest:\n    name: pytest\n    runs-on: ubuntu-latest\n    steps: []\n"
+        }
+      ],
+      "controlPlane": {
+        "rulesets": [
+          {
+            "id": 1,
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "refName": {
+                "include": [
+                  "refs/heads/main"
+                ],
+                "exclude": []
+              }
+            },
+            "requiredStatusChecks": [
+              {
+                "context": "Collect information",
+                "integrationId": 15368
+              },
+              {
+                "context": "Check all requirements",
+                "integrationId": 15368
+              },
+              {
+                "context": "Check hassfest",
+                "integrationId": 15368
+              }
+            ]
+          }
+        ],
+        "classicProtection": {
+          "state": "observed",
+          "targetRef": "refs/heads/main",
+          "requiredStatusChecks": []
+        }
+      },
+      "observedRuns": [
+        {
+          "event": "pull_request",
+          "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+          "runId": "33880435717",
+          "checkRuns": [
+            {
+              "name": "Collect information",
+              "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Check all requirements",
+              "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "Check hassfest",
+              "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            },
+            {
+              "name": "pytest",
+              "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+              "status": "completed",
+              "conclusion": "success",
+              "provider": {
+                "kind": "github-app",
+                "integrationId": 15368
+              }
+            }
+          ],
+          "workflowPath": ".github/workflows/ci.yml",
+          "targetRef": "refs/heads/main",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "policy": {
+        "jobs": []
+      },
+      "collection": {
+        "complete": true,
+        "sources": [
+          {
+            "name": "workflow",
+            "outcome": "observed",
+            "complete": true,
+            "path": ".github/workflows/ci.yml",
+            "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad"
+          },
+          {
+            "name": "control-plane",
+            "outcome": "observed",
+            "complete": true,
+            "ref": "refs/heads/main"
+          },
+          {
+            "name": "observed-runs",
+            "outcome": "observed",
+            "complete": true,
+            "runId": "33880435717",
+            "sha": "7802271b6c7f3e5968f824434fe02893e345c7ad",
+            "pagesComplete": true
+          },
+          {
+            "name": "policy",
+            "outcome": "observed",
+            "complete": true
+          }
+        ]
+      }
+    },
+    "expectedStatus": "policy-review",
+    "expectedReasonOrProducer": "VOTING_INTENT_UNKNOWN"
+  }
+]

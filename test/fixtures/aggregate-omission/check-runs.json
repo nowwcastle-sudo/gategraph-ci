@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Voting test",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "name": "Unrelated test",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  {
+    "name": "check",
+    "status": "completed",
+    "conclusion": "success"
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "enforcement": "active",
+  "requiredStatusChecks": [
+    "check"
+  ]
+}
