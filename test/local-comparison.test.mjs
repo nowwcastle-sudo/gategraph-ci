@@ -16,6 +16,39 @@ const reseal = (report) => {
   return report;
 };
 
+test('audited pinned-to-wildcard requirement is visible as gate and policy drift', async () => {
+  const input = createDemoInput('finding');
+  const before = await auditControlPlane(input, { explain: true });
+  const relaxed = structuredClone(input);
+  relaxed.controlPlane.rulesets[0].requiredStatusChecks[0].integrationId = null;
+  const after = await auditControlPlane(relaxed, { explain: true });
+  assert.equal(before.status, 'finding');
+  assert.equal(after.status, 'finding');
+  assert.equal(before.coverageSnapshot.gates[0].requiredIntegrationId, 15368);
+  assert.equal(after.coverageSnapshot.gates[0].requiredIntegrationId, null);
+  assert.deepEqual(after.coverageSnapshot.gates[0].provider, before.coverageSnapshot.gates[0].provider);
+  const compared = compareCoverage(before, after);
+  assert.equal(compared.comparable, true);
+  assert.deepEqual(new Set(compared.changes.map((change) => change.kind)),
+    new Set(['gate-added', 'gate-removed', 'policy-changed', 'coverage-changed']));
+});
+
+test('audited pinned ruleset and wildcard classic gates remain distinct and self-comparable', async () => {
+  const input = createDemoInput('finding');
+  input.controlPlane.classicProtection.requiredStatusChecks.push({
+    context: input.controlPlane.rulesets[0].requiredStatusChecks[0].context, integrationId: null,
+  });
+  const report = await auditControlPlane(input, { explain: true });
+  assert.equal(report.status, 'finding');
+  assert.equal(report.coverageSnapshot.complete, true);
+  assert.deepEqual(new Set(report.coverageSnapshot.gates.map((gate) => gate.requiredIntegrationId)),
+    new Set([15368, null]));
+  assert.equal(new Set(report.coverageSnapshot.gates.map((gate) => gate.id)).size, 2);
+  assert.equal(new Set(report.coverageSnapshot.links.map((link) => link.gateId)).size, 2);
+  assert.equal(compareCoverage(report, report).comparable, true);
+  assert.deepEqual(compareCoverage(report, report).changes, []);
+});
+
 function paginatedDemoInput(withTotal = true) {
   const input = createDemoInput('finding');
   const index = input.collection.sources.findIndex((source) => source.name === 'check-runs');
@@ -131,6 +164,8 @@ test('resealed missing source, run and malformed nullable provenance fail closed
     [selected, (s) => { s.observation.scope.runIds = ['999']; }],
     [selected, (s) => { s.observation.policyInput.coordinate.runs[0].runAttempt = 1; }],
     [selected, (s) => { s.observation.policyInput.reviewedAt = '2026-09-05 06:00:00'; }],
+    [fixture, (s) => { delete s.gates[0].requiredIntegrationId; }],
+    [fixture, (s) => { s.gates[0].requiredIntegrationId = 999; }],
   ]) {
     const after = structuredClone(base);
     mutate(after.coverageSnapshot);
@@ -210,7 +245,8 @@ test('all seven change kinds are observable without claiming repair', async () =
   snapshot.producers.push(added);
   const oldGate = snapshot.gates.pop();
   const addedGate = { ...oldGate, jobId: 'new-gate', checkName: 'new-gate' };
-  addedGate.id = canonicalDigest([addedGate.workflowPath, addedGate.jobId, addedGate.checkName, addedGate.provider]);
+  addedGate.id = canonicalDigest([addedGate.workflowPath, addedGate.jobId, addedGate.checkName,
+    addedGate.requiredIntegrationId, addedGate.provider]);
   snapshot.gates.push(addedGate);
   snapshot.policyFingerprint = 'c'.repeat(64);
   snapshot.producers[0].coverage = 'uncovered';
@@ -247,7 +283,8 @@ test('mismatched coordinates and invalid digest are unavailable', async () => {
       for (const r of after.coverageSnapshot.observation.runs) r.workflowPath = value[0];
       for (const source of after.coverageSnapshot.observation.sources) if (source.path) source.path = value[0];
       for (const p of after.coverageSnapshot.producers) p.id = canonicalDigest([p.workflowPath,p.jobId,p.axes,p.provider]);
-      for (const g of after.coverageSnapshot.gates) g.id = canonicalDigest([g.workflowPath,g.jobId,g.checkName,g.provider]);
+      for (const g of after.coverageSnapshot.gates) g.id = canonicalDigest([
+        g.workflowPath,g.jobId,g.checkName,g.requiredIntegrationId,g.provider]);
       after.coverageSnapshot.links = [];
     }
     reseal(after);

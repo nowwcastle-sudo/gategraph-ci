@@ -127,6 +127,15 @@ test('experimental release documentation keeps the first-use safety contract', a
   assert.doesNotMatch(combined, /-----BEGIN [A-Z ]*PRIVATE KEY-----/);
 });
 
+test('both packaged READMEs link to repository-hosted local coverage guidance', async () => {
+  const guide = 'https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/local-coverage.md';
+  for (const path of ['README.md', 'README.ko.md']) {
+    const readme = await read(path);
+    assert.ok(readme.includes(`](${guide})`), path);
+    assert.ok(!readme.includes('](docs/local-coverage.md)'), path);
+  }
+});
+
 test('first-use commands capture native exits immediately and preserve the complete JSON report', async (t) => {
   const readmeLf = (await read('README.md')).replace(/\r\n?/g, '\n');
   const results = [];

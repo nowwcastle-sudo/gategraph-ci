@@ -33,7 +33,7 @@ The `--explain` and `compare` commands below require the current source-built ca
 
 Audit options can be reordered. Only `--run-id` may repeat. Unrecognized options, duplicate singleton options and invalid values exit `1`.
 
-`compare` exits `0` for valid comparable reports, even when changes exist; it exits `4` for invalid or incomparable evidence and `1` for usage or unexpected failures. A disappeared finding is not proof of repair. A snapshot digest checks internal consistency, not who produced the file. Current ruleset observations do not prove what the control plane was at an earlier commit. See [local coverage and comparison](docs/local-coverage.md) for working commands, input ceilings and interpretation.
+`compare` exits `0` for valid comparable reports, even when changes exist; it exits `4` for invalid or incomparable evidence and `1` for usage or unexpected failures. A disappeared finding is not proof of repair. A snapshot digest checks internal consistency, not who produced the file. Current ruleset observations do not prove what the control plane was at an earlier commit. See [local coverage and comparison](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/local-coverage.md) for working commands, input ceilings and interpretation.
 
 From a current source checkout with dependencies installed, this synthetic no-drift example saves one fresh report and compares it with itself. Run the PowerShell lines in order:
 

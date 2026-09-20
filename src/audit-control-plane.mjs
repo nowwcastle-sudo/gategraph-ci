@@ -1137,7 +1137,7 @@ export async function auditControlPlane(input, options = {}) {
       instance.workflow.path, instance.job.jobId, instance.axes, provider(instance),
     ]);
     const gateId = (item) => canonicalDigest([
-      item.workflow.path, item.job.jobId, item.checkName, provider(item),
+      item.workflow.path, item.job.jobId, item.checkName, item.gate.integrationId, provider(item),
     ]);
     const gateSources = (item) => item.gate.sources.map((source) => ({ ...source }))
       .sort((a, b) => {
@@ -1179,12 +1179,19 @@ export async function auditControlPlane(input, options = {}) {
         digest: createHash('sha256').update(workflow.text, 'utf8').digest('hex') })),
       producers,
       gates: gateCoverage.map((gate) => ({ id: gateId(gate), workflowPath: gate.workflow.path,
-        jobId: gate.job.jobId, checkName: gate.checkName, provider: provider(gate),
+        jobId: gate.job.jobId, checkName: gate.checkName,
+        requiredIntegrationId: gate.gate.integrationId, provider: provider(gate),
         sources: gateSources(gate) })),
       edges, links,
       policyFingerprint: canonicalDigest({
         jobs: [...policy].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
         gates: [...gatePolicies].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
+        requirements: gateCoverage.map((gate) => [gate.gate.context, gate.gate.integrationId,
+          gateSources(gate)]).sort((a, b) => {
+          const left = JSON.stringify(a);
+          const right = JSON.stringify(b);
+          return left < right ? -1 : left > right ? 1 : 0;
+        }),
       }),
       observation: {
         sourceSha: input.subject.sha,

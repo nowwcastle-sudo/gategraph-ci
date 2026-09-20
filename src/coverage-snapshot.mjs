@@ -193,11 +193,13 @@ function validSnapshot(snapshot) {
     const gateIds = new Set();
     const gateById = new Map();
     for (const g of snapshot.gates) {
-      if (!keys(g, ['id', 'workflowPath', 'jobId', 'checkName', 'provider', 'sources']) ||
+      if (!keys(g, ['id', 'workflowPath', 'jobId', 'checkName', 'requiredIntegrationId', 'provider', 'sources']) ||
         !snapshot.scope.includes(g.workflowPath) || !nonempty(g.jobId) || !nonempty(g.checkName) ||
         !provider(g.provider) || !array(g.sources, 4096) || !g.sources.length ||
+        (g.requiredIntegrationId !== null && (g.requiredIntegrationId !== g.provider.integrationId)) ||
         g.sources.some((source) => !gateSource(source, snapshot.targetRef)) ||
-        g.id !== canonicalDigest([g.workflowPath, g.jobId, g.checkName, g.provider]) || gateIds.has(g.id)) return false;
+        g.id !== canonicalDigest([g.workflowPath, g.jobId, g.checkName,
+          g.requiredIntegrationId, g.provider]) || gateIds.has(g.id)) return false;
       gateIds.add(g.id);
       gateById.set(g.id, g);
     }
