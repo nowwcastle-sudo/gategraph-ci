@@ -100,6 +100,19 @@ test('missing observed cell and wrong provider do not silently join', async () =
   assert.equal((await auditControlPlane(providerInput)).status, 'collection-error');
 });
 
+test('same-name matrix cell from two providers is ambiguous observed evidence', async () => {
+  const input = matrixDemo({ a: [1, 2], b: [3, 4] });
+  const original = input.observedRuns[0].checkRuns[0];
+  input.observedRuns[0].checkRuns.push({
+    ...original,
+    provider: { kind: 'github-app', integrationId: 42 },
+  });
+  const report = await auditControlPlane(input);
+  assert.equal(report.status, 'collection-error');
+  assert.equal(report.results[0].reasonCode, 'UNSUPPORTED_OR_AMBIGUOUS_EVIDENCE');
+  assert.deepEqual(report.results[0].unresolvedPremises, ['RUN_OR_CHECK_IDENTITY_UNRESOLVED']);
+});
+
 test('a required matrix cell does not hide uncovered siblings', async () => {
   const input = matrixDemo({ a: [1, 2], b: [3, 4] });
   input.controlPlane.rulesets[0].requiredStatusChecks.push({
