@@ -13,6 +13,8 @@ The package stays `private: true` to prevent accidental npm publication; public 
 
 Repository documentation can be newer than the release archive. The published `v0.2.0-experimental.1` archive does not include the Korean edition; read it in the repository. The current source candidate packs 12 files, including `README.ko.md` and three new runtime modules. These source changes do not replace the released assets or change their checksums.
 
+The `--explain` and `compare` commands below require the current source-built candidate. They are not included in the fixed `v0.2.0-experimental.1` download.
+
 ## What the commands do
 
 | Command or input | Behavior and boundary |
