@@ -31,6 +31,7 @@ const HELP = [
   'Optional --policy-file FILE requires --target-ref and --run-id; it binds reviewed policy to the observed run attempt.',
   'Authored policy is an operator assertion, not authenticated maintainer approval. Retain its evidence.',
   'Never mark all-needs propagation from dependency ancestry alone.',
+  'Optional --explain on audit or demo adds a bounded coverage snapshot and review-only suggestions.',
   'GateGraph does not execute workflows or change GitHub state.', '',
 ].join('\n');
 const EXIT_BY_STATUS = new Map([
@@ -48,17 +49,31 @@ function parseCommand(argv) {
   }
   if (argv.length === 1 && argv[0] === '--version') return { kind: 'version' };
   if (argv[0] === 'demo') {
-    const scenario = argv.length === 1 ? 'finding' : argv[2];
-    if ((argv.length === 1 || (argv.length === 3 && argv[1] === '--scenario')) &&
-      DEMO_SCENARIOS.includes(scenario)) return { kind: 'demo', scenario };
-    return null;
+    let scenario = 'finding';
+    let explain = false;
+    let hasScenario = false;
+    for (let index = 1; index < argv.length; index += 1) {
+      if (argv[index] === '--explain' && !explain) explain = true;
+      else if (argv[index] === '--scenario' && !hasScenario && DEMO_SCENARIOS.includes(argv[index + 1])) {
+        scenario = argv[++index];
+        hasScenario = true;
+      } else return null;
+    }
+    return { kind: 'demo', scenario, explain };
   }
-  if (argv[0] !== 'audit' || argv.length % 2 !== 1) return null;
+  if (argv[0] !== 'audit') return null;
   const options = new Map();
   const runIds = [];
-  for (let index = 1; index < argv.length; index += 2) {
+  let explain = false;
+  for (let index = 1; index < argv.length; index += 1) {
     const option = argv[index];
-    const value = argv[index + 1];
+    if (option === '--explain') {
+      if (explain) return null;
+      explain = true;
+      continue;
+    }
+    const value = argv[++index];
+    if (value === undefined) return null;
     if (value.startsWith('--')) return null;
     if (!['--repo', '--sha', '--run-id', '--target-ref', '--policy-file'].includes(option)) return null;
     if (option === '--run-id') {
@@ -73,7 +88,7 @@ function parseCommand(argv) {
     !options.has('--sha') || !SHA.test(options.get('--sha')) ||
     (options.has('--target-ref') && !BRANCH_REF.test(options.get('--target-ref')))) return null;
   if (options.has('--policy-file') && (!options.get('--policy-file') || !runIds.length || !options.has('--target-ref'))) return null;
-  return { kind: 'audit', ...(options.has('--policy-file') ? { policyFile: options.get('--policy-file') } : {}), coordinate: {
+  return { kind: 'audit', explain, ...(options.has('--policy-file') ? { policyFile: options.get('--policy-file') } : {}), coordinate: {
     repository: options.get('--repo'), sha: options.get('--sha'),
     ...(runIds.length ? { runIds: [...runIds].sort() } : {}),
     ...(options.has('--target-ref') ? { targetRef: options.get('--target-ref') } : {}),
@@ -120,7 +135,7 @@ export async function runCli(argv, dependencies = {}) {
         input = applyAuthoredPolicy(await collector({ ...command.coordinate, requireRunAttempt: true }), document);
       }
     } else input = await collector(command.coordinate);
-    const report = await audit(input);
+    const report = command.explain ? await audit(input, { explain: true }) : await audit(input);
     const exitCode = EXIT_BY_STATUS.get(report?.status);
     if (exitCode === undefined) throw new TypeError('unsupported report status');
     stdout.write(`${JSON.stringify(report)}\n`);
