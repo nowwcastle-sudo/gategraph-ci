@@ -139,6 +139,27 @@ function validObservationSource(source, snapshot, runIds) {
     (source.totalCount === undefined || (Number.isSafeInteger(source.totalCount) && source.totalCount >= 0)));
 }
 
+function completePaginationGroups(sources) {
+  const groups = new Map();
+  for (const source of sources) {
+    if (source.page === undefined) continue;
+    const key = `${source.name}\0${source.runId ?? ''}\0${source.sha ?? ''}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(source);
+  }
+  for (const group of groups.values()) {
+    const pages = [...group].sort((left, right) => left.page - right.page);
+    if (pages.some((page, index) => page.page !== index + 1)) return false;
+    const hasTotal = pages.some((page) => page.totalCount !== undefined);
+    if (hasTotal) {
+      if (pages.some((page) => page.totalCount === undefined) ||
+        new Set(pages.map((page) => page.totalCount)).size !== 1 ||
+        pages.reduce((sum, page) => sum + page.count, 0) !== pages[0].totalCount) return false;
+    } else if (pages.at(-1).count >= 100) return false;
+  }
+  return true;
+}
+
 function validSnapshot(snapshot) {
   try {
     if (!keys(snapshot, ['repository', 'sourceSha', 'targetRef', 'analysisContract', 'scope',
@@ -214,7 +235,8 @@ function validSnapshot(snapshot) {
       (o.scope !== null && o.subjectKind !== 'github') ||
       !nullableScope(o.scope, snapshot, o.runs) || !nullablePolicyInput(o.policyInput, snapshot, o)) return false;
     const observedRunIds = new Set(o.runs.map((run) => run.runId));
-    if (o.sources.some((source) => !validObservationSource(source, snapshot, observedRunIds))) return false;
+    if (o.sources.some((source) => !validObservationSource(source, snapshot, observedRunIds)) ||
+      !completePaginationGroups(o.sources)) return false;
     const names = new Set(o.sources.map((source) => source.name));
     for (const group of [['workflow'], ['control-plane', 'ruleset', 'rulesets', 'classic-protection'],
       ['observed-runs', 'actions-runs', 'jobs', 'check-run', 'check-runs'], ['policy']]) {

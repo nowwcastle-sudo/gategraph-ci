@@ -16,6 +16,56 @@ const reseal = (report) => {
   return report;
 };
 
+function paginatedDemoInput(withTotal = true) {
+  const input = createDemoInput('finding');
+  const index = input.collection.sources.findIndex((source) => source.name === 'check-runs');
+  const original = input.collection.sources[index];
+  const page = (number, count) => ({ ...original, page: number, count, pagesComplete: true,
+    ...(withTotal ? { totalCount: 3 } : {}) });
+  input.collection.sources.splice(index, 1, page(1, 1), page(2, 2));
+  const workflow = input.collection.sources.find((source) => source.name === 'workflow');
+  Object.assign(workflow, { page: 1, count: 1, totalCount: 1, pagesComplete: true });
+  return input;
+}
+
+test('real complete pagination groups remain comparable, with and without totalCount', async () => {
+  for (const withTotal of [true, false]) {
+    const report = await auditControlPlane(paginatedDemoInput(withTotal), { explain: true });
+    assert.equal(report.coverageSnapshot.complete, true);
+    assert.equal(compareCoverage(report, structuredClone(report)).comparable, true);
+  }
+});
+
+test('resealed missing or contradictory pages fail like producer completeness checks', async () => {
+  const input = paginatedDemoInput();
+  const before = await auditControlPlane(input, { explain: true });
+  assert.equal(before.status, 'finding');
+  const missingInput = structuredClone(input);
+  missingInput.collection.sources = missingInput.collection.sources.filter((source) => source.page !== 2);
+  const producerResult = await auditControlPlane(missingInput, { explain: true });
+  assert.equal(producerResult.status, 'collection-error');
+  assert.equal(producerResult.results[0].reasonCode, 'EVIDENCE_INCOMPLETE');
+  for (const mutate of [
+    (sources) => sources.splice(sources.findIndex((source) => source.name === 'check-runs' && source.page === 2), 1),
+    (sources) => { sources.find((source) => source.name === 'check-runs' && source.page === 2).page = 3; },
+    (sources) => { sources.find((source) => source.name === 'check-runs' && source.page === 2).totalCount = 4; },
+    (sources) => { delete sources.find((source) => source.name === 'check-runs' && source.page === 2).totalCount; },
+  ]) {
+    const after = structuredClone(before);
+    mutate(after.coverageSnapshot.observation.sources);
+    reseal(after);
+    const compared = compareCoverage(before, after);
+    assert.deepEqual(compared.unresolved, ['SNAPSHOT_INVALID']);
+    assert.deepEqual(compared.changes, []);
+  }
+  const noTotal = await auditControlPlane(paginatedDemoInput(false), { explain: true });
+  const saturated = structuredClone(noTotal);
+  saturated.coverageSnapshot.observation.sources.find((source) =>
+    source.name === 'check-runs' && source.page === 2).count = 100;
+  reseal(saturated);
+  assert.deepEqual(compareCoverage(noTotal, saturated).unresolved, ['SNAPSHOT_INVALID']);
+});
+
 async function selectedGithubReport(authored = false, selected = true) {
   const input = createDemoInput('finding');
   const repository = 'example/project';
