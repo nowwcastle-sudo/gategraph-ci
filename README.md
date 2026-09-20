@@ -1,11 +1,33 @@
 # GateGraph CI
 
+[English](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.md) | [한국어](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.ko.md)
+
 GateGraph CI is an experimental, read-only diagnostic CLI for inspecting GitHub merge-gate evidence. It does not enforce merge policy or prove that a repository is safe. Maintainer adoption and production suitability remain unverified.
+
+Use it to investigate whether a job that should block a merge can fail while GitHub's required checks still pass. A *required context* is the exact check name a branch rule requires; a *voting job* is a job whose failure is intended to block merging. GateGraph compares workflow jobs, observed check runs, current branch rules and explicit policy to find gaps between those two things.
 
 License: Apache License 2.0. See [LICENSE](LICENSE).
 Source: [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci), branch `main`.
 Release: `v0.2.0-experimental.1`; package: `gategraph-ci@0.2.0-experimental.1`.
 The package stays `private: true` to prevent accidental npm publication; public source and GitHub release downloads do not require an npm publication.
+
+Repository documentation can be newer than the release archive. The published `v0.2.0-experimental.1` archive does not include the Korean edition; read it in the repository. New builds from current source contain nine files because npm automatically includes `README.ko.md`. These documentation changes do not replace the released assets or change their checksums.
+
+## What the commands do
+
+| Command or input | Behavior and boundary |
+|---|---|
+| `demo` | Analyze invented evidence with the real audit core. Defaults to `finding`; no account or network is needed after installation. |
+| `demo --scenario NAME` | Choose `finding`, `policy-review`, `unknown` or `collection-error` to inspect each report status. |
+| `audit --repo OWNER/NAME --sha SHA` | Collect workflows at a full 40-character commit SHA, observed Actions runs/jobs/checks, and current rulesets and classic branch protection. Emit one JSON report. |
+| `--run-id ID` | Select a positive integer run ID. Repeat for multiple workflows; IDs must be unique, and exactly one completed run per selected workflow is allowed. |
+| `--target-ref refs/heads/BRANCH` | Assert the branch target already established by run evidence. It cannot invent a missing target. |
+| Workflow selection | Use `--run-id`; there is no workflow-path CLI option. Excluded runs and workflow paths appear in `provenance.scope`. Active required contexts still apply. |
+| `--policy-file FILE` | Read a local strict JSON policy of at most 64 KiB. Requires `--target-ref` and at least one `--run-id`; bind the policy to the exact observed run attempt. |
+| `--help`, `demo --help`, `audit --help` | Print usage text without collecting evidence. |
+| `--version` | Print the installed package name and version. |
+
+Audit options can be reordered. Only `--run-id` may repeat. Unrecognized options, duplicate singleton options and invalid values exit `1`.
 
 Workflow parsing and name expansion have [local resource ceilings](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/runtime-resource-limits.md). Exceeding them returns `WORKFLOW_RESOURCE_LIMIT_EXCEEDED` as a collection error. These are analyzer limits, not GitHub Actions validity rules or whole-process memory/time guarantees.
 
@@ -59,9 +81,8 @@ $gategraphInstallExit = $LASTEXITCODE
 if ($gategraphInstallExit -ne 0) { throw "GateGraph install did not complete successfully (exit $gategraphInstallExit). Keep this directory and npm logs; do not run the demo." }
 ```
 
-PowerShell에서는 실행 정책에 따라 `npm`이 `npm.ps1`로 해석될 수 있으므로 Windows 설치 명령은 `npm.cmd`로 고정합니다.
-고유한 임시 prefix를 사용해 이전 설치와 섞이지 않게 합니다. 성공하거나 실패한
-prefix와 로그는 결과를 확인할 때까지 보존하고, 다음 시도에는 새 이름을 만듭니다.
+On Windows, use `npm.cmd` so PowerShell does not resolve `npm` to an execution-policy-blocked `npm.ps1`.
+Each temporary install directory keeps this attempt separate from previous installs. Preserve it and its logs until the result is reviewed; use a fresh directory for another attempt.
 Capture the install's native exit on the line immediately after `npm.cmd`.
 Proceed only after a completed exit `0`. A timeout, interrupted process, missing
 native exit, or residual prefix files leaves installation **UNKNOWN**; keep the
@@ -111,9 +132,13 @@ Try another scenario or inspect the installed command using the same PowerShell 
 
 An `unknown` result is not proof that a repository is safe. Audit and demo write exactly one JSON document to stdout; help/version write text and exit 0. Invalid command usage and unexpected internal failures exit 1.
 
+Exit `0` can mean that no uncovered path was proven within the supplied evidence, or that a job is explicitly advisory. It does not establish coverage for every possible failure or authenticate the policy author's intent. Read `results` and their reason codes alongside the top-level status; retain the report's `subject` and `provenance` so another reader can identify its scope.
+
 ## Live audits and explicit selection
 
 Live audits additionally need an authenticated GitHub CLI (`gh`) and read permission for the target's Actions, contents, rulesets, and protection evidence. These command shapes use placeholders; substitute coordinates from an observed run before a live invocation:
+
+Install GitHub CLI using its [official installation instructions](https://cli.github.com/manual/installation), then authenticate using [gh auth login](https://cli.github.com/manual/gh_auth_login). The account must be able to read the selected repository and every required endpoint, including check runs and branch protection. Successful sign-in alone does not establish those permissions; organization restrictions and token type can affect access. GateGraph does not request or upgrade permissions. Obtain the full SHA, completed run IDs and target branch from the repository's Actions run details before replacing the placeholders below.
 
 ```text
 gategraph audit --repo owner/name --sha 40-hex-commit
@@ -183,6 +208,33 @@ Other incomplete or unsupported evidence also fails closed. A classic-protection
 
 Live collection uses only allowlisted `gh api --method GET` requests. GateGraph does not execute workflow text, run workflows, change GitHub state, or apply automatic fixes.
 
+| Stage | Network and local-file scope |
+|---|---|
+| Download and dependency preparation | Read public GitHub release assets and the npm registry; write the new download directory and explicit npm cache. |
+| Offline install | Read the verified TGZ and prepared cache; write a new local install prefix and npm logs. Lifecycle scripts are disabled. |
+| Installed demo | Use bundled synthetic data and write JSON to stdout. The documented PowerShell redirection creates a fresh local report file. |
+| Live audit | Invoke authenticated `gh` for allowlisted GET requests to repository metadata, the Git tree, workflow contents, Actions runs/jobs, check runs, rulesets and branch protection. Read a local policy file only when requested; write the report to stdout. |
+
+Reports can contain repository names, SHAs, branch names and run/workflow identities. Review them before sharing. Authentication belongs to GitHub CLI; do not put tokens in a policy file or issue report.
+
+## Supported workflow subset and limits
+
+GateGraph parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and one matrix axis with scalar string/number/boolean values referenced by `matrix.KEY` in the job name. A job-level condition, when present, must be the literal `always()`.
+
+Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, multiple matrix axes, include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
+
+| Local analyzer resource | Ceiling |
+|---|---:|
+| UTF-8 text per workflow / all workflows | 1 MiB / 4 MiB |
+| Jobs per workflow | 128 |
+| Declared job-name length | 1,024 |
+| Values per supported matrix axis | 128 |
+| Matrix value length after string conversion | 256 |
+| One expanded check-name length | 2,048 |
+| Combined expanded check-name lengths per audit | 65,536 |
+
+Name lengths use JavaScript string length. Exceeding a ceiling stops the entire analysis with `WORKFLOW_RESOURCE_LIMIT_EXCEEDED`, with no partial findings. These limits also apply to workflows without a matching observed run. Narrowing run selection may reduce scope; it never removes active required contexts or proves excluded workflows safe. See [runtime resource limits](docs/runtime-resource-limits.md) for the full contract.
+
 ## Limitations
 
 - This is experimental OSS: diagnostics are not enforcement or production certification.
@@ -218,13 +270,13 @@ From a source checkout with Node 24, open PowerShell at the repository root. Run
    $LASTEXITCODE
    ```
 
-The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact eight-member list (including `LICENSE`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
+The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact nine-member list (including `LICENSE` and `README.ko.md`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
 
 The test retains temporary artifacts and performs no online install fallback. `npm run pack:check` prints the dry-run manifest; the installed-package test performs the actual membership and runtime assertions. CI evidence applies only to its exact source commit and runner; a new candidate needs its own evidence.
 
 ## Build from source and contribute
 
-Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact eight-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
+Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact nine-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
 
 Read [CONTRIBUTING](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CONTRIBUTING.md), [SECURITY](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/SECURITY.md), and [CODE_OF_CONDUCT](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CODE_OF_CONDUCT.md). Use synthetic reproductions and redact real repository evidence.
 

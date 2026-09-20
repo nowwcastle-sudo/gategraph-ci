@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryDir = fileURLToPath(new URL('..', import.meta.url));
 const expectedFiles = [
-  'LICENSE', 'README.md', 'bin/gategraph.mjs', 'package.json', 'src/audit-control-plane.mjs',
+  'LICENSE', 'README.md', 'README.ko.md', 'bin/gategraph.mjs', 'package.json', 'src/audit-control-plane.mjs',
   'src/demo-evidence.mjs', 'src/gh-adapter.mjs', 'src/policy-input.mjs',
 ];
 
