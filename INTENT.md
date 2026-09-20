@@ -9,5 +9,5 @@ conservative static multi-axis matrix support. Preserve unknowns and GET-only
 collection. No automatic fixes, GitHub writes, hosted service or npm publication.
 
 Existing regressions and meaningful new feature tests must run. Detailed design:
-docs/superpowers/specs/2026-09-20-local-completion-design.md. It awaits written
-design review; no new implementation or passing result is claimed yet.
+docs/superpowers/specs/2026-09-20-local-completion-design.md. The owner approved
+the written design on 2026-09-20 ("설계 승인"); no new implementation or passing result is claimed yet.
