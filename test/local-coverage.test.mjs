@@ -55,6 +55,32 @@ test('canonical digest ignores object insertion order but rejects unsupported va
   const symbolKey = [1];
   symbolKey[Symbol('hidden')] = 2;
   assert.throws(() => canonicalDigest(symbolKey), TypeError);
+  const sparseExtra = Array(1);
+  sparseExtra.extra = 1;
+  assert.throws(() => canonicalDigest(sparseExtra), TypeError);
+  let getterCalls = 0;
+  const accessor = [1];
+  Object.defineProperty(accessor, '0', { enumerable: true, get() { getterCalls += 1; return 1; } });
+  assert.throws(() => canonicalDigest(accessor), TypeError);
+  assert.equal(getterCalls, 0);
+});
+
+test('reordered required-source facts do not change the snapshot digest', async () => {
+  const input = createDemoInput('finding');
+  input.controlPlane.rulesets.push({ ...structuredClone(input.controlPlane.rulesets[0]), id: 2 });
+  const reordered = structuredClone(input);
+  reordered.controlPlane.rulesets.reverse();
+  const defaultBefore = await auditControlPlane(input);
+  const first = await auditControlPlane(input, { explain: true });
+  const second = await auditControlPlane(reordered, { explain: true });
+  assert.deepEqual(await auditControlPlane(input), defaultBefore);
+  assert.deepEqual(defaultBefore.results[0].activeGates[0].sources.map((source) => source.id), ['1', '2']);
+  assert.deepEqual((await auditControlPlane(reordered)).results[0].activeGates[0].sources.map((source) => source.id), ['2', '1']);
+  assert.equal(first.status, 'finding');
+  assert.equal(second.status, 'finding');
+  assert.deepEqual(first.coverageSnapshot.observation, second.coverageSnapshot.observation);
+  assert.equal(first.coverageSnapshot.policyFingerprint, second.coverageSnapshot.policyFingerprint);
+  assert.equal(first.coverageSnapshot.digest, second.coverageSnapshot.digest);
 });
 
 test('snapshot resource ceilings reject overflow, including serialized UTF-8', async () => {

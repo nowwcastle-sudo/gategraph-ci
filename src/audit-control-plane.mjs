@@ -1139,6 +1139,12 @@ export async function auditControlPlane(input, options = {}) {
     const gateId = (item) => canonicalDigest([
       item.workflow.path, item.job.jobId, item.checkName, provider(item),
     ]);
+    const gateSources = (item) => item.gate.sources.map((source) => ({ ...source }))
+      .sort((a, b) => {
+        const left = JSON.stringify([a.kind, a.id ?? a.ref]);
+        const right = JSON.stringify([b.kind, b.id ?? b.ref]);
+        return left < right ? -1 : left > right ? 1 : 0;
+      });
     const edges = workflows.flatMap((workflow) => workflow.jobs.flatMap((job) => job.needs.map((dependency) => ({
       workflowPath: workflow.path, fromJobId: dependency, toJobId: job.jobId,
     }))));
@@ -1150,7 +1156,7 @@ export async function auditControlPlane(input, options = {}) {
       const aggregate = gateCoverage.filter((gate) => gate.workflow.path === instance.workflow.path &&
         gate.ancestors.has(instance.job.jobId));
       for (const gate of direct) links.push({ producerId: producerId(instance), gateId: gateId(gate),
-        kind: 'direct', evidence: { sources: gate.gate.sources } });
+        kind: 'direct', evidence: { sources: gateSources(gate) } });
       for (const gate of aggregate) links.push({ producerId: producerId(instance), gateId: gateId(gate),
         kind: 'aggregate', evidence: { failurePropagation: 'all-needs',
           evidenceFingerprint: gatePolicies.get(`${gate.workflow.path}/${gate.job.jobId}`).evidenceFingerprint } });
@@ -1174,7 +1180,7 @@ export async function auditControlPlane(input, options = {}) {
       producers,
       gates: gateCoverage.map((gate) => ({ id: gateId(gate), workflowPath: gate.workflow.path,
         jobId: gate.job.jobId, checkName: gate.checkName, provider: provider(gate),
-        sources: gate.gate.sources })),
+        sources: gateSources(gate) })),
       edges, links,
       policyFingerprint: canonicalDigest({
         jobs: [...policy].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),

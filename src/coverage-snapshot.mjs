@@ -18,10 +18,18 @@ function canonicalJson(value, ancestors = new Set()) {
   ancestors.add(value);
   let serialized;
   if (Array.isArray(value)) {
-    if (Object.keys(value).length !== value.length || Reflect.ownKeys(value).length !== value.length + 1) {
+    if (Reflect.ownKeys(value).length !== value.length + 1) {
       throw new TypeError('unsupported canonical array');
     }
-    serialized = `[${value.map((item) => canonicalJson(item, ancestors)).join(',')}]`;
+    const items = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+        throw new TypeError('unsupported canonical array');
+      }
+      items.push(canonicalJson(descriptor.value, ancestors));
+    }
+    serialized = `[${items.join(',')}]`;
   } else {
     serialized = `{${Reflect.ownKeys(value).sort().map((key) => {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
