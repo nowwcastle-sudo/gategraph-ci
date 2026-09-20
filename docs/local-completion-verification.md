@@ -10,7 +10,7 @@ This table maps approved requirements to source and runnable evidence. Counts an
 | GG-L02 local drift (Task 3) | `src/report-input.mjs`, `src/coverage-snapshot.mjs`, `bin/gategraph.mjs`; all seven change kinds and comparable/unavailable exits | `node --test test/local-comparison.test.mjs test/cli.test.mjs`: 23/23, exit 0; `npm test`: 290/290, exit 0 | Locally verified with synthetic saved observations. |
 | GG-L05 comparison and permission failure explanation (Task 3) | strict saved-reader/invalid-snapshot codes; existing GET collector retains 404/permission collection-error | Same 23/23 and 290/290 commands, exit 0; existing GET/404 regressions included in full suite | Local failure paths verified; live permission scope unexecuted. |
 
-## Final candidate checks
+## Initial Task 3 checks (historical)
 
 | Check | Count / exit / artifact | Status |
 |---|---|---|
@@ -23,3 +23,34 @@ This table maps approved requirements to source and runnable evidence. Counts an
 | Remote two-Windows CI and live/private GitHub evidence | Not run | Requires separately authorized publication and identified evidence coordinates/permissions. |
 
 The immutable historical release remains eight files; this current source candidate is twelve files. The source archive, installed package and any future remote run must be identified by their own commit/artifact hashes. A local pack or fixture test does not alter historical assets or prove remote CI.
+
+## Final local review checkpoint
+
+The consolidated fix at `28fd4d1c017e3b3095c0e0bf50c28fe6fa024280`
+preserves required-provider selectors separately from observed providers.
+Pinned-to-wildcard drift is visible; mixed pinned/wildcard requirements have
+distinct gate identities and compare successfully to themselves. Both final
+review findings were independently marked addressed, with no new
+Critical/Important breakage.
+
+| Check | Result | Source |
+|---|---|---|
+| `npm test` | 300 tests, 300 pass, 0 fail; exit 0 | Runtime fix `28fd4d1`; implementer execution report. Separate raw stdout file not established. |
+| Documentation contract | 6 tests, 6 pass; exit 0 | README correction `b53e5f2c19f28500f425fbcd52b7a03304a652a9`. |
+| `npm test -- test/installed-package.test.mjs` | 10 tests, 10 pass; exit 0 | Fresh package after README correction; direct command log retained. |
+| Candidate membership and offline use | Exact 12 members; installed demo/explain/compare and Windows command shim passed | Same fresh final package. |
+| Dedicated static security diff review | All six changed source files reviewed; no reportable findings | Sealed scan `b737fb57-5af6-453b-8311-d3db254711d4` at `28fd4d1`. |
+
+Final candidate TGZ SHA-256:
+`0d599a8358340c35f93c71774f4f3a5316a3a36137a402819ded237b7a8c29be`.
+The README-only correction leaves `src`, `bin`, package metadata and lockfile
+identical to the tested/security-reviewed runtime. The earlier full suite
+was not repeated for prose changes. README now distinguishes the source
+candidate's four-axis/128-combination limit and 12-file package from the
+older release. Previous artifact hashes above remain historical, not aliases
+for this TGZ.
+
+This static diff review does not establish every Windows race, host/`gh`
+configuration, private repository integration or whole-process resource bound.
+Remote two-Windows CI and new publication remain unexecuted. No GitHub write
+path or npm publication was added.
