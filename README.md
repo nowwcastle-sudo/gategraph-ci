@@ -237,15 +237,17 @@ Reports can contain repository names, SHAs, branch names and run/workflow identi
 
 ## Supported workflow subset and limits
 
-GateGraph parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and one matrix axis with scalar string/number/boolean values referenced by `matrix.KEY` in the job name. A job-level condition, when present, must be the literal `always()`.
+The current source candidate parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and up to four static matrix axes with at most 128 combinations in total. Values must be scalar strings, numbers or booleans; every axis must appear as `matrix.KEY` in the job name, and expanded names must be unique. A job-level condition, when present, must be the literal `always()`. The existing `v0.2.0-experimental.1` download supports only one axis; these expanded limits require the source candidate.
 
-Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, multiple matrix axes, include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
+Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, dynamic or include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
 
 | Local analyzer resource | Ceiling |
 |---|---:|
 | UTF-8 text per workflow / all workflows | 1 MiB / 4 MiB |
 | Jobs per workflow | 128 |
 | Declared job-name length | 1,024 |
+| Static matrix axes in the current source candidate | 4 |
+| Total matrix combinations per job | 128 |
 | Values per supported matrix axis | 128 |
 | Matrix value length after string conversion | 256 |
 | One expanded check-name length | 2,048 |
@@ -288,13 +290,13 @@ From a source checkout with Node 24, open PowerShell at the repository root. Run
    $LASTEXITCODE
    ```
 
-The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact nine-member list (including `LICENSE` and `README.ko.md`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
+The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact twelve-member list (including `LICENSE` and `README.ko.md`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
 
 The test retains temporary artifacts and performs no online install fallback. `npm run pack:check` prints the dry-run manifest; the installed-package test performs the actual membership and runtime assertions. CI evidence applies only to its exact source commit and runner; a new candidate needs its own evidence.
 
 ## Build from source and contribute
 
-Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact nine-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
+Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact twelve-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
 
 Read [CONTRIBUTING](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CONTRIBUTING.md), [SECURITY](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/SECURITY.md), and [CODE_OF_CONDUCT](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CODE_OF_CONDUCT.md). Use synthetic reproductions and redact real repository evidence.
 
