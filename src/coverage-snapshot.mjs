@@ -77,6 +77,67 @@ const unique = (values) => new Set(values).size === values.length;
 const array = (value, max) => Array.isArray(value) && value.length <= max;
 const provider = (value) => keys(value, ['kind', 'integrationId']) && value.kind === 'github-app' &&
   Number.isSafeInteger(value.integrationId) && value.integrationId > 0;
+const branchRef = (value) => typeof value === 'string' && /^refs\/heads\/[A-Za-z0-9._\-/]+$/.test(value);
+const workflowPath = (value) => typeof value === 'string' && /^\.github\/workflows\/.+\.ya?ml$/.test(value) &&
+  !value.includes('\\') && value.split('/').every((part) => part && part !== '.' && part !== '..');
+const runId = (value) => typeof value === 'string' && /^[1-9][0-9]*$/.test(value) &&
+  Number.isSafeInteger(Number(value));
+const utcTime = (value) => typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) &&
+  Number.isFinite(Date.parse(value)) &&
+  new Date(value).toISOString() === (value.includes('.') ? value : value.replace('Z', '.000Z'));
+const idList = (value, required = false) => array(value, 4096) && (!required || value.length > 0) &&
+  value.every(runId) && unique(value);
+const nullableScope = (value, snapshot, runs) => value === null ||
+  (keys(value, ['kind', 'repository', 'sha', 'targetRef', 'runIds', 'excludedRunIds',
+    'excludedWorkflowPaths']) && value.kind === 'selected-runs' &&
+    value.repository === snapshot.repository && value.sha === snapshot.sourceSha &&
+    value.targetRef === snapshot.targetRef && idList(value.runIds, true) &&
+    idList(value.excludedRunIds) && array(value.excludedWorkflowPaths, 4096) &&
+    value.excludedWorkflowPaths.every(workflowPath) && unique(value.excludedWorkflowPaths) &&
+    value.excludedRunIds.every((id) => !value.runIds.includes(id)) &&
+    value.excludedWorkflowPaths.every((path) => !snapshot.scope.includes(path)) &&
+    canonicalDigest([...value.runIds].sort()) === canonicalDigest(runs.map((run) => run.runId).sort()));
+const nullablePolicyInput = (value, snapshot, observation) => value === null ||
+  (observation.scope !== null && keys(value, ['contract', 'coordinate', 'reviewedAt',
+    'evidenceFingerprint', 'documentFingerprint']) && value.contract === 'gategraph-authored-policy/v1' &&
+    keys(value.coordinate, ['repository', 'sha', 'targetRef', 'runs']) &&
+    value.coordinate.repository === snapshot.repository && value.coordinate.sha === snapshot.sourceSha &&
+    value.coordinate.targetRef === snapshot.targetRef && array(value.coordinate.runs, 4096) &&
+    value.coordinate.runs.length === observation.runs.length &&
+    value.coordinate.runs.every((run) => keys(run, ['runId', 'workflowPath', 'runAttempt']) &&
+      observation.runs.some((observed) => observed.runId === run.runId &&
+        observed.workflowPath === run.workflowPath && observed.runAttempt === run.runAttempt)) &&
+    unique(value.coordinate.runs.map((run) => run.runId)) &&
+    utcTime(value.reviewedAt) && value.reviewedAt.includes('.') &&
+    Date.parse(value.reviewedAt) <= Date.parse(observation.analyzedAt) &&
+    ['evidenceFingerprint', 'documentFingerprint'].every((key) =>
+      typeof value[key] === 'string' && /^[a-f0-9]{12}$/.test(value[key])));
+const gateSource = (source, targetRef) => plain(source) &&
+  (source.kind === 'ruleset' ? keys(source, ['kind', 'id']) && nonempty(source.id) :
+    source.kind === 'classic-protection' && keys(source, ['kind', 'ref']) && source.ref === targetRef);
+const sourceKeys = new Set(['name', 'outcome', 'complete', 'pagesComplete', 'endpoint', 'sha', 'ref',
+  'defaultBranchRef', 'path', 'rulesetId', 'runId', 'page', 'count', 'totalCount', 'providerId', 'reasonCode']);
+function validObservationSource(source, snapshot, runIds) {
+  if (!plain(source) || Object.keys(source).some((key) => !sourceKeys.has(key)) ||
+    !nonempty(source.name) || source.complete !== true ||
+    (source.outcome !== 'observed' && !(source.name === 'policy' && source.outcome === 'not-supplied')) ||
+    (source.pagesComplete !== undefined && source.pagesComplete !== true) ||
+    (source.sha !== undefined && source.sha !== snapshot.sourceSha) ||
+    (source.ref !== undefined && source.ref !== snapshot.targetRef) ||
+    (source.defaultBranchRef !== undefined && !branchRef(source.defaultBranchRef)) ||
+    (source.path !== undefined && !snapshot.scope.includes(source.path)) ||
+    (source.runId !== undefined && !runIds.has(source.runId)) ||
+    (source.endpoint !== undefined && (typeof source.endpoint !== 'string' ||
+      source.endpoint.length > 2048 || !/^repos\/[A-Za-z0-9._~%+?=&\-/]+$/.test(source.endpoint))) ||
+    (source.rulesetId !== undefined && !nonempty(source.rulesetId)) ||
+    (source.reasonCode !== undefined && !nonempty(source.reasonCode)) ||
+    (source.providerId !== undefined && (!Number.isSafeInteger(source.providerId) || source.providerId <= 0))) return false;
+  const hasPage = ['page', 'count', 'totalCount'].some((key) => Object.hasOwn(source, key));
+  return !hasPage || (Number.isSafeInteger(source.page) && source.page > 0 &&
+    Number.isSafeInteger(source.count) && source.count >= 0 &&
+    (source.totalCount === undefined || (Number.isSafeInteger(source.totalCount) && source.totalCount >= 0)));
+}
 
 function validSnapshot(snapshot) {
   try {
@@ -91,7 +152,8 @@ function validSnapshot(snapshot) {
       !array(snapshot.scope, 4096) || !array(snapshot.workflows, 4096) ||
       !array(snapshot.producers, 4096) || !array(snapshot.gates, 4096) ||
       !array(snapshot.edges, 16384) || !array(snapshot.links, 16384) ||
-      snapshot.scope.some((path) => !nonempty(path)) || !unique(snapshot.scope)) return false;
+      snapshot.scope.length === 0 || snapshot.scope.some((path) => !workflowPath(path)) ||
+      !unique(snapshot.scope) || snapshot.workflows.length !== snapshot.scope.length) return false;
     if (snapshot.workflows.some((w) => !keys(w, ['path', 'digest']) ||
       !snapshot.scope.includes(w.path) || typeof w.digest !== 'string' || !SHA.test(w.digest)) ||
       !unique(snapshot.workflows.map((w) => w.path))) return false;
@@ -108,15 +170,15 @@ function validSnapshot(snapshot) {
       producerIds.add(p.id);
     }
     const gateIds = new Set();
+    const gateById = new Map();
     for (const g of snapshot.gates) {
       if (!keys(g, ['id', 'workflowPath', 'jobId', 'checkName', 'provider', 'sources']) ||
         !snapshot.scope.includes(g.workflowPath) || !nonempty(g.jobId) || !nonempty(g.checkName) ||
         !provider(g.provider) || !array(g.sources, 4096) || !g.sources.length ||
-        g.sources.some((source) => !plain(source) || !['ruleset', 'classic-protection'].includes(source.kind) ||
-          (source.kind === 'ruleset' ? !keys(source, ['kind', 'id']) || !nonempty(source.id) :
-            !keys(source, ['kind', 'ref']) || source.ref !== snapshot.targetRef)) ||
+        g.sources.some((source) => !gateSource(source, snapshot.targetRef)) ||
         g.id !== canonicalDigest([g.workflowPath, g.jobId, g.checkName, g.provider]) || gateIds.has(g.id)) return false;
       gateIds.add(g.id);
+      gateById.set(g.id, g);
     }
     if (snapshot.edges.some((edge) => !keys(edge, ['workflowPath', 'fromJobId', 'toJobId']) ||
       !snapshot.scope.includes(edge.workflowPath) || !nonempty(edge.fromJobId) || !nonempty(edge.toJobId)) ||
@@ -126,21 +188,42 @@ function validSnapshot(snapshot) {
         !producerIds.has(link.producerId) || !gateIds.has(link.gateId) ||
         !['direct', 'aggregate'].includes(link.kind)) return false;
       if (link.kind === 'direct') {
-        if (!keys(link.evidence, ['sources']) || !array(link.evidence.sources, 4096)) return false;
+        const gate = gateById.get(link.gateId);
+        if (!keys(link.evidence, ['sources']) || !array(link.evidence.sources, 4096) ||
+          !link.evidence.sources.length ||
+          link.evidence.sources.some((source) => !gateSource(source, snapshot.targetRef)) ||
+          canonicalDigest(link.evidence.sources) !== canonicalDigest(gate.sources)) return false;
       } else if (!keys(link.evidence, ['failurePropagation', 'evidenceFingerprint']) ||
         link.evidence.failurePropagation !== 'all-needs' ||
+        typeof link.evidence.evidenceFingerprint !== 'string' ||
         !/^[a-f0-9]{12}$/.test(link.evidence.evidenceFingerprint)) return false;
     }
     const o = snapshot.observation;
     if (!keys(o, ['sourceSha', 'analyzedAt', 'subjectKind', 'evidenceKind', 'sources', 'runs', 'scope', 'policyInput']) ||
-      o.sourceSha !== snapshot.sourceSha || !nonempty(o.analyzedAt) ||
+      o.sourceSha !== snapshot.sourceSha || !utcTime(o.analyzedAt) ||
       !['fixture', 'github'].includes(o.subjectKind) || o.evidenceKind !== 'observation-time' ||
       (o.subjectKind === 'github' && !/^[0-9a-f]{40}$/i.test(snapshot.sourceSha)) ||
       (o.subjectKind === 'fixture' && !/^fixture:[A-Za-z0-9._-]+$/.test(snapshot.sourceSha)) ||
-      !array(o.sources, 4096) || !array(o.runs, 4096) ||
-      o.sources.some((s) => !plain(s) || !nonempty(s.name) || !nonempty(s.outcome) || s.complete !== true) ||
-      o.runs.some((r) => !plain(r) || !nonempty(r.runId) ||
-        !snapshot.scope.includes(r.workflowPath) || r.sha !== snapshot.sourceSha)) return false;
+      !array(o.sources, 4096) || !o.sources.length || !array(o.runs, 4096) ||
+      o.runs.length !== snapshot.scope.length ||
+      o.runs.some((r) => !(keys(r, ['runId', 'workflowPath', 'sha']) ||
+        keys(r, ['runId', 'workflowPath', 'sha', 'runAttempt'])) || !nonempty(r.runId) ||
+        !snapshot.scope.includes(r.workflowPath) || r.sha !== snapshot.sourceSha ||
+        (r.runAttempt !== undefined && (!Number.isSafeInteger(r.runAttempt) || r.runAttempt <= 0))) ||
+      !unique(o.runs.map((run) => run.runId)) || !unique(o.runs.map((run) => run.workflowPath)) ||
+      (o.scope !== null && o.subjectKind !== 'github') ||
+      !nullableScope(o.scope, snapshot, o.runs) || !nullablePolicyInput(o.policyInput, snapshot, o)) return false;
+    const observedRunIds = new Set(o.runs.map((run) => run.runId));
+    if (o.sources.some((source) => !validObservationSource(source, snapshot, observedRunIds))) return false;
+    const names = new Set(o.sources.map((source) => source.name));
+    for (const group of [['workflow'], ['control-plane', 'ruleset', 'rulesets', 'classic-protection'],
+      ['observed-runs', 'actions-runs', 'jobs', 'check-run', 'check-runs'], ['policy']]) {
+      if (!group.some((name) => names.has(name))) return false;
+    }
+    if (snapshot.scope.some((path) => !o.sources.some((source) => source.name === 'workflow' &&
+      source.path === path && source.outcome === 'observed')) ||
+      o.runs.some((run) => !o.sources.some((source) => source.runId === run.runId &&
+        ['jobs', 'check-run', 'check-runs'].includes(source.name) && source.outcome === 'observed'))) return false;
     if (Buffer.byteLength(JSON.stringify(snapshot), 'utf8') > 1024 * 1024) return false;
     const { digest, ...withoutDigest } = snapshot;
     return canonicalDigest(withoutDigest) === digest;

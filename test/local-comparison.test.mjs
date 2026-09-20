@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { auditControlPlane } from '../src/audit-control-plane.mjs';
 import { createDemoInput } from '../src/demo-evidence.mjs';
+import { applyAuthoredPolicy } from '../src/policy-input.mjs';
 import { canonicalDigest, compareCoverage } from '../src/coverage-snapshot.mjs';
 import { parseSavedReport, readSavedReport } from '../src/report-input.mjs';
 
@@ -14,6 +15,102 @@ const reseal = (report) => {
   report.coverageSnapshot.digest = canonicalDigest(report.coverageSnapshot);
   return report;
 };
+
+async function selectedGithubReport(authored = false, selected = true) {
+  const input = createDemoInput('finding');
+  const repository = 'example/project';
+  const sha = '0123456789abcdef0123456789abcdef01234567';
+  const targetRef = 'refs/heads/main';
+  const workflowPath = '.github/workflows/ci.yml';
+  input.analysis.analyzedAt = '2026-09-05T06:01:00.000Z';
+  input.subject = { kind: 'github', id: `${repository}@${sha}`, repository, sha, ref: targetRef,
+    defaultBranchRef: targetRef };
+  Object.assign(input.workflows[0], { path: workflowPath, sha });
+  Object.assign(input.observedRuns[0], { runId: '501', workflowPath, runAttempt: 2, sha });
+  for (const check of input.observedRuns[0].checkRuns) check.sha = sha;
+  if (selected) input.collection.scope = { kind: 'selected-runs', repository, sha, targetRef,
+    runIds: ['501'], excludedRunIds: [], excludedWorkflowPaths: [] };
+  for (const source of input.collection.sources) {
+    if (Object.hasOwn(source, 'sha')) source.sha = sha;
+    if (Object.hasOwn(source, 'path')) source.path = workflowPath;
+    if (Object.hasOwn(source, 'runId')) source.runId = '501';
+  }
+  input.policy.jobs = input.policy.jobs.map((job) => ({ ...job, workflowPath }));
+  input.policy.gates = { [`${workflowPath}/gate`]: Object.values(input.policy.gates)[0] };
+  if (!authored) return auditControlPlane(input, { explain: true });
+  input.collection.sources.find((source) => source.name === 'policy').outcome = 'not-supplied';
+  input.policy = { jobs: [] };
+  const document = { contract: 'gategraph-authored-policy/v1',
+    coordinate: { repository, sha, targetRef, runs: [{ runId: '501', workflowPath, runAttempt: 2 }] },
+    review: { observedAt: '2026-09-05T06:00:00.000Z', evidence: 'synthetic-reviewed-gate-v1' },
+    jobs: ['producer', 'dependency'].map((jobId) => ({ workflowPath, jobId, mergePolicy: 'voting' })),
+    gates: { [`${workflowPath}/gate`]: { failurePropagation: 'all-needs', evidence: 'synthetic-propagation-v1' } } };
+  return auditControlPlane(applyAuthoredPolicy(input, document), { explain: true });
+}
+
+test('actual selected and authored-policy producer contracts remain comparable', async () => {
+  for (const authored of [false, true]) {
+    const report = await selectedGithubReport(authored);
+    assert.equal(report.coverageSnapshot.complete, true);
+    assert.equal(report.coverageSnapshot.observation.scope.kind, 'selected-runs');
+    assert.equal(report.coverageSnapshot.observation.policyInput === null, !authored);
+    assert.equal(compareCoverage(report, structuredClone(report)).comparable, true);
+  }
+});
+
+test('live-shaped observation without explicit selection retains null optional provenance', async () => {
+  const report = await selectedGithubReport(false, false);
+  assert.equal(report.coverageSnapshot.complete, true);
+  assert.equal(report.coverageSnapshot.observation.subjectKind, 'github');
+  assert.equal(report.coverageSnapshot.observation.scope, null);
+  assert.equal(report.coverageSnapshot.observation.policyInput, null);
+  assert.equal(compareCoverage(report, structuredClone(report)).comparable, true);
+});
+
+test('resealed missing source, run and malformed nullable provenance fail closed', async () => {
+  const fixture = await example();
+  const selected = await selectedGithubReport(true);
+  for (const [base, mutate] of [
+    [fixture, (s) => { s.observation.sources = []; }],
+    [fixture, (s) => { s.observation.runs = []; }],
+    [selected, (s) => { s.observation.sources.find((source) => source.name === 'workflow').path =
+      '.github/workflows/other.yml'; }],
+    [selected, (s) => { delete s.observation.sources.find((source) => source.name === 'check-runs').runId; }],
+    [selected, (s) => { s.observation.scope = 123; }],
+    [selected, (s) => { s.observation.policyInput = 'invalid'; }],
+    [selected, (s) => { s.observation.scope.runIds = ['999']; }],
+    [selected, (s) => { s.observation.policyInput.coordinate.runs[0].runAttempt = 1; }],
+    [selected, (s) => { s.observation.policyInput.reviewedAt = '2026-09-05 06:00:00'; }],
+  ]) {
+    const after = structuredClone(base);
+    mutate(after.coverageSnapshot);
+    reseal(after);
+    assert.deepEqual(compareCoverage(base, after).unresolved, ['SNAPSHOT_INVALID']);
+    assert.deepEqual(compareCoverage(base, after).changes, []);
+  }
+});
+
+test('resealed missing workflow digest cannot erase scoped workflow drift', async () => {
+  const before = await example();
+  const after = structuredClone(before);
+  after.coverageSnapshot.workflows = [];
+  reseal(after);
+  assert.deepEqual(compareCoverage(before, after).unresolved, ['SNAPSHOT_INVALID']);
+  assert.deepEqual(compareCoverage(before, after).changes, []);
+});
+
+test('resealed malformed direct sources and aggregate fingerprint cannot imply coverage', async () => {
+  const before = await example();
+  for (const [kind, mutate] of [
+    ['direct', (link) => { link.evidence.sources = [false]; }],
+    ['aggregate', (link) => { link.evidence.evidenceFingerprint = ['aaaaaaaaaaaa']; }],
+  ]) {
+    const after = structuredClone(before);
+    mutate(after.coverageSnapshot.links.find((link) => link.kind === kind));
+    reseal(after);
+    assert.deepEqual(compareCoverage(before, after).unresolved, ['SNAPSHOT_INVALID']);
+  }
+});
 
 test('reobservation timestamp and run order do not create drift', async () => {
   const before = await example();
@@ -89,12 +186,16 @@ test('mismatched coordinates and invalid digest are unavailable', async () => {
   ]) {
     const after = structuredClone(before);
     after.coverageSnapshot[field] = value;
+    if (field === 'targetRef') {
+      for (const source of after.coverageSnapshot.observation.sources) if (source.ref) source.ref = value;
+    }
     if (field === 'scope') {
       after.coverageSnapshot.workflows[0].path = value[0];
       for (const p of after.coverageSnapshot.producers) p.workflowPath = value[0];
       for (const g of after.coverageSnapshot.gates) g.workflowPath = value[0];
       for (const e of after.coverageSnapshot.edges) e.workflowPath = value[0];
       for (const r of after.coverageSnapshot.observation.runs) r.workflowPath = value[0];
+      for (const source of after.coverageSnapshot.observation.sources) if (source.path) source.path = value[0];
       for (const p of after.coverageSnapshot.producers) p.id = canonicalDigest([p.workflowPath,p.jobId,p.axes,p.provider]);
       for (const g of after.coverageSnapshot.gates) g.id = canonicalDigest([g.workflowPath,g.jobId,g.checkName,g.provider]);
       after.coverageSnapshot.links = [];
