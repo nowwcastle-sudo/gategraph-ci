@@ -11,7 +11,7 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 릴리스는 `v0.2.0-experimental.1`, 패키지는 `gategraph-ci@0.2.0-experimental.1`입니다.
 실수로 npm에 게시하지 않도록 패키지의 `private: true`를 유지합니다. 공개 소스와 GitHub 릴리스 다운로드는 npm 게시 없이 사용할 수 있습니다.
 
-저장소 문서는 릴리스 압축 파일보다 최신일 수 있습니다. 기존 `v0.2.0-experimental.1` 배포 파일에는 한국어판이 없으며 저장소에서 읽을 수 있습니다. 현재 소스로 새로 빌드하면 npm이 `README.ko.md`를 자동 포함하므로 파일이 9개가 됩니다. 이번 문서 수정은 릴리스 파일이나 체크섬을 바꾸지 않습니다.
+저장소 문서는 릴리스 압축 파일보다 최신일 수 있습니다. 기존 `v0.2.0-experimental.1` 배포 파일에는 한국어판이 없으며 저장소에서 읽을 수 있습니다. 현재 소스 후보를 묶으면 `README.ko.md`와 새 실행 모듈 3개를 포함해 12개 파일이 됩니다. 이 소스 변경은 기존 릴리스 파일이나 체크섬을 바꾸지 않습니다.
 
 ## 명령별 기능
 
@@ -24,10 +24,26 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 | `--target-ref refs/heads/BRANCH` | 실행 증거에서 이미 확인된 대상 브랜치를 검증합니다. 빠진 대상 정보를 만들어 넣을 수 없습니다. |
 | 워크플로 선택 | `--run-id`를 사용합니다. 워크플로 경로를 직접 지정하는 CLI 옵션은 없습니다. 제외한 실행과 워크플로 경로는 `provenance.scope`에 남으며 활성 필수 컨텍스트는 계속 적용됩니다. |
 | `--policy-file FILE` | 최대 64 KiB의 로컬 strict JSON 정책을 읽습니다. `--target-ref`와 하나 이상의 `--run-id`가 필요하며 정확한 관측 실행 차수에 정책을 연결합니다. |
+| `--explain` | `audit` 또는 `demo` 결과에 자원 상한을 지킨 전체 coverage snapshot과 검토용 제안을 더합니다. 기본 출력은 그대로입니다. |
+| `compare --before FILE --after FILE` | 저장한 로컬 JSON 보고서 2개를 검증하고 관측 시점의 coverage 변화를 비교합니다. GitHub 수집이나 파일 수정은 하지 않습니다. |
 | `--help`, `demo --help`, `audit --help` | 증거를 수집하지 않고 사용법을 출력합니다. |
 | `--version` | 설치된 패키지 이름과 버전을 출력합니다. |
 
 audit 옵션의 순서는 바꿀 수 있습니다. 반복 가능한 옵션은 `--run-id`뿐입니다. 알 수 없는 옵션, 단일 옵션의 중복, 잘못된 값은 종료 코드 `1`을 반환합니다.
+
+`compare`는 비교 가능한 두 보고서면 변화가 있어도 종료 코드 `0`, 증거가 잘못됐거나 비교할 수 없으면 `4`, 사용법 오류나 예상 밖 실패면 `1`입니다. finding이 사라졌다는 이유만으로 수리됐다고 판단하지 않습니다. snapshot digest는 파일 내부의 일관성을 확인할 뿐 작성자 신원을 인증하지 않습니다. 현재 관측한 규칙이 과거 커밋 시점에도 같았다고 소급할 수 없습니다. 실행 명령과 입력 상한은 [로컬 coverage·비교 안내](docs/local-coverage.md)를 보세요.
+
+현재 소스 체크아웃에 의존성을 설치한 뒤 아래 PowerShell 명령을 차례로 실행하면 새 가상 보고서를 저장하고 그 파일을 자기 자신과 비교할 수 있습니다. 변화가 없는 예시입니다.
+
+```powershell
+$gategraphSaved = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-snapshot-' + [guid]::NewGuid().ToString('N') + '.json')
+node ./bin/gategraph.mjs demo --explain | Out-File -LiteralPath $gategraphSaved -Encoding utf8 -NoClobber -ErrorAction Stop
+$gategraphDemoExit = $LASTEXITCODE
+if ($gategraphDemoExit -ne 2) { throw '가상 finding의 종료 코드 2가 아닙니다. 보고서를 보존하세요.' }
+node ./bin/gategraph.mjs compare --before $gategraphSaved --after $gategraphSaved
+$gategraphCompareExit = $LASTEXITCODE
+if ($gategraphCompareExit -ne 0) { throw '비교할 수 없습니다. 보고서를 보존하세요.' }
+```
 
 워크플로 파싱과 이름 확장에는 [로컬 자원 상한](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/runtime-resource-limits.md)이 있습니다. 초과하면 수집 오류 `WORKFLOW_RESOURCE_LIMIT_EXCEEDED`를 반환합니다. 이는 분석기의 상한이며 GitHub Actions의 유효성 규칙이나 전체 프로세스의 메모리·시간 보장값이 아닙니다.
 
@@ -261,13 +277,13 @@ Node 24가 필요합니다. 소스 체크아웃의 저장소 루트에서 PowerS
    $LASTEXITCODE
    ```
 
-설치 패키지 테스트는 `npm test`에서 npm CLI 경로를 받아 새 tarball을 만들고 `LICENSE`와 `README.ko.md`를 포함한 정확한 9개 파일 목록을 확인한 뒤 별도 임시 폴더에 오프라인으로 설치합니다. 이 테스트를 `node --test`로 직접 실행하는 방식은 지원하지 않으며 `npm test`를 사용하라는 안내가 나옵니다. 네트워크가 필요한 준비 단계가 앞서 설명한 설치 후 데모의 오프라인 실행 조건을 바꾸지는 않습니다.
+설치 패키지 테스트는 `npm test`에서 npm CLI 경로를 받아 새 tarball을 만들고 `LICENSE`와 `README.ko.md`를 포함한 정확한 12개 파일 목록을 확인한 뒤 별도 임시 폴더에 오프라인으로 설치합니다. 이 테스트를 `node --test`로 직접 실행하는 방식은 지원하지 않으며 `npm test`를 사용하라는 안내가 나옵니다. 네트워크가 필요한 준비 단계가 앞서 설명한 설치 후 데모의 오프라인 실행 조건을 바꾸지는 않습니다.
 
 테스트는 임시 파일을 보존하며 온라인 설치로 우회하지 않습니다. `npm run pack:check`는 dry-run 목록을 출력하고 설치 패키지 테스트가 실제 파일 구성과 실행 결과를 검증합니다. CI 증거는 정확히 해당 소스 커밋과 실행 환경에만 적용됩니다. 새 후보에는 별도 증거가 필요합니다.
 
 ## 소스 빌드와 기여
 
-깨끗한 체크아웃, 정확한 9개 파일 압축본, 체크섬, 오프라인 설치, 가상 데모는 [소스 빌드 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md)를 따르세요. 소스 압축본과 설치용 TGZ는 서로 다른 파일입니다.
+깨끗한 체크아웃, 정확한 12개 파일 압축본, 체크섬, 오프라인 설치, 가상 데모는 [소스 빌드 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md)를 따르세요. 소스 압축본과 설치용 TGZ는 서로 다른 파일입니다.
 
 [CONTRIBUTING](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CONTRIBUTING.md), [SECURITY](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/SECURITY.md), [CODE_OF_CONDUCT](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CODE_OF_CONDUCT.md)를 읽어주세요. 재현에는 가상 데이터를 사용하고 실제 저장소 증거는 민감한 내용을 가리세요.
 

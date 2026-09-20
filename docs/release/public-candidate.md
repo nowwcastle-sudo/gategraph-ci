@@ -2,7 +2,7 @@
 
 This route uses an existing checkout with Node.js 24, npm and Git available.
 It builds a clean checkout of https://github.com/nowwcastle-sudo/gategraph-ci
-on branch main. The existing v0.2.0-experimental.1 release remains immutable;
+at the selected source commit. The existing v0.2.0-experimental.1 release remains immutable;
 later source builds include the Korean README and must not replace that asset.
 Use synthetic data only.
 The package remains private to block npm publication; GitHub source and release
@@ -27,7 +27,7 @@ $gategraphPackExit = $LASTEXITCODE
 if ($gategraphPackExit -ne 0) { throw 'Packaging failed; preserve this directory and logs.' }
 $gategraphPack = @(($gategraphPackJson -join [Environment]::NewLine) | ConvertFrom-Json)
 if ($gategraphPack.Count -ne 1) { throw 'Expected one package manifest.' }
-$gategraphExpected = @('LICENSE','README.md','README.ko.md','package.json','bin/gategraph.mjs','src/audit-control-plane.mjs','src/demo-evidence.mjs','src/gh-adapter.mjs','src/policy-input.mjs') | Sort-Object
+$gategraphExpected = @('LICENSE','README.md','README.ko.md','package.json','bin/gategraph.mjs','src/audit-control-plane.mjs','src/demo-evidence.mjs','src/gh-adapter.mjs','src/policy-input.mjs','src/static-matrix.mjs','src/coverage-snapshot.mjs','src/report-input.mjs') | Sort-Object
 $gategraphActual = @($gategraphPack[0].files.path) | Sort-Object
 if (($gategraphActual -join ',') -cne ($gategraphExpected -join ',')) { throw 'Unexpected package member set.' }
 $gategraphTarball = Join-Path $gategraphCandidate $gategraphPack[0].filename
@@ -39,7 +39,7 @@ Get-Content -LiteralPath ($gategraphTarball + '.sha256')
 Get-Content -LiteralPath (Join-Path $gategraphCandidate 'source.txt')
 ```
 
-Current source builds have exactly nine files including LICENSE and README.ko.md.
+Current source candidate builds have exactly 12 files including LICENSE and README.ko.md.
 npm includes README variants automatically. The already published release has
 eight files and remains unchanged. The package metadata still yields the filename
 gategraph-ci-0.2.0-experimental.1.tgz; source.txt and the checksum identify a fresh

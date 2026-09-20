@@ -19,6 +19,9 @@
     "src/gh-adapter.mjs",
     "src/demo-evidence.mjs",
     "src/policy-input.mjs",
+    "src/static-matrix.mjs",
+    "src/coverage-snapshot.mjs",
+    "src/report-input.mjs",
     "README.md"
   ],
   "scripts": {

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { readSavedReport } from '../src/report-input.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -89,8 +90,22 @@ function withControlledPaths(script, outputPath, invokedPath) {
   return `$gategraphOutput = ${quote(outputPath)}\n${producer}\n${fixtureBody}`;
 }
 
-function assertRejectedMutation(readme, search, replacement, expected, label) {
-  const mutant = readme.replace(search, replacement);
+function replaceInPowerShellBlock(readme, heading, search, replacement) {
+  const headingIndex = readme.indexOf(heading);
+  assert.notEqual(headingIndex, -1, `Missing heading: ${heading}`);
+  const fenceIndex = readme.indexOf('```powershell', headingIndex);
+  assert.notEqual(fenceIndex, -1, `Missing PowerShell block after: ${heading}`);
+  const start = readme.indexOf('\n', fenceIndex) + 1;
+  const end = readme.indexOf('\n```', start);
+  assert.notEqual(end, -1, `Unclosed PowerShell block after: ${heading}`);
+  const block = readme.slice(start, end);
+  const changed = block.replace(search, replacement);
+  assert.notEqual(changed, block, 'Mutation must affect the selected block.');
+  return readme.slice(0, start) + changed + readme.slice(end);
+}
+
+function assertRejectedMutation(readme, heading, search, replacement, expected, label) {
+  const mutant = replaceInPowerShellBlock(readme, heading, search, replacement);
   assert.notEqual(mutant, readme, `${label} mutation must be applied.`);
   assert.throws(() => assertFirstUseContract(mutant), expected);
   return { mutationApplied: true, contractRejected: true };
@@ -122,20 +137,25 @@ test('first-use commands capture native exits immediately and preserve the compl
     const { install, save } = assertFirstUseContract(readme);
     const mutations = {
       installCaptureMissing: assertRejectedMutation(readme,
+        '## First task: run the installed synthetic demo',
         `$gategraphInstallExit = $LASTEXITCODE${newline}`, '',
         /Capture the native install exit/, `${lineEnding} install-capture-missing`),
       installCaptureSeparated: assertRejectedMutation(readme,
+        '## First task: run the installed synthetic demo',
         `$gategraphInstallExit = $LASTEXITCODE${newline}`,
         `Write-Output 'separated'${newline}$gategraphInstallExit = $LASTEXITCODE${newline}`,
         /Capture the native install exit/, `${lineEnding} install-capture-separated`),
       demoCaptureMissing: assertRejectedMutation(readme,
+        '### Save and read back the complete demo report',
         `$gategraphDemoExit = $LASTEXITCODE${newline}`, '',
         /Capture the native demo exit/, `${lineEnding} demo-capture-missing`),
       demoCaptureSeparated: assertRejectedMutation(readme,
+        '### Save and read back the complete demo report',
         `$gategraphDemoExit = $LASTEXITCODE${newline}`,
         `Write-Output 'separated'${newline}$gategraphDemoExit = $LASTEXITCODE${newline}`,
         /Capture the native demo exit/, `${lineEnding} demo-capture-separated`),
-      noClobberMissing: assertRejectedMutation(readme, ' -NoClobber', '',
+      noClobberMissing: assertRejectedMutation(readme,
+        '### Save and read back the complete demo report', ' -NoClobber', '',
         /Save UTF-8 through a literal, no-clobber path/, `${lineEnding} no-clobber-missing`),
     };
     assert.match(install, /Keep this directory and npm logs; do not run the demo/);
@@ -145,6 +165,35 @@ test('first-use commands capture native exits immediately and preserve the compl
 
   t.diagnostic(JSON.stringify(results));
 });
+
+test('first-use mutations select their block even after an earlier identical token', async () => {
+  const readme = await read('README.md');
+  const prefix = '$gategraphDemoExit = $LASTEXITCODE\nOut-File -NoClobber\n';
+  const prefixed = `${prefix}${readme}`;
+  const mutant = replaceInPowerShellBlock(prefixed, '### Save and read back the complete demo report',
+    '$gategraphDemoExit = $LASTEXITCODE\n', '');
+  assert.equal(mutant.slice(0, prefix.length), prefix);
+  assert.throws(() => assertFirstUseContract(mutant), /Capture the native demo exit/);
+});
+
+test('source example saves strict UTF-8 JSON and compares it on both PowerShell versions',
+  { skip: process.platform !== 'win32' }, async (t) => {
+    const readme = await read('README.md');
+    const example = powershellBlockAfter(readme, '## What the commands do');
+    assert.match(example, /Out-File .* -NoClobber -ErrorAction Stop/);
+    for (const [shell, bom] of [['pwsh', false], ['powershell.exe', true]]) {
+      const result = spawnSync(shell, ['-NoProfile', '-NonInteractive', '-Command', `${example}\n$gategraphSaved`], {
+        cwd: repoRoot, encoding: 'utf8', windowsHide: true,
+      });
+      assert.equal(result.status, 0, `${shell}: ${result.stderr}`);
+      assert.match(result.stdout, /"comparable":true,"changes":\[\]/);
+      const path = result.stdout.trim().split(/\r?\n/).at(-1);
+      const bytes = await readFile(path);
+      assert.equal(bytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])), bom);
+      assert.equal((await readSavedReport(path)).coverageSnapshot.complete, true);
+      t.diagnostic(JSON.stringify({ shell, savedPath: path, bom, compareExit: 0 }));
+    }
+  });
 
 test('copied save snippet refuses an existing path and the preservation assertion detects a guard-removal mutant',
   { skip: process.platform !== 'win32' }, async (t) => {

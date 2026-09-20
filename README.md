@@ -11,7 +11,7 @@ Source: [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategr
 Release: `v0.2.0-experimental.1`; package: `gategraph-ci@0.2.0-experimental.1`.
 The package stays `private: true` to prevent accidental npm publication; public source and GitHub release downloads do not require an npm publication.
 
-Repository documentation can be newer than the release archive. The published `v0.2.0-experimental.1` archive does not include the Korean edition; read it in the repository. New builds from current source contain nine files because npm automatically includes `README.ko.md`. These documentation changes do not replace the released assets or change their checksums.
+Repository documentation can be newer than the release archive. The published `v0.2.0-experimental.1` archive does not include the Korean edition; read it in the repository. The current source candidate packs 12 files, including `README.ko.md` and three new runtime modules. These source changes do not replace the released assets or change their checksums.
 
 ## What the commands do
 
@@ -24,10 +24,26 @@ Repository documentation can be newer than the release archive. The published `v
 | `--target-ref refs/heads/BRANCH` | Assert the branch target already established by run evidence. It cannot invent a missing target. |
 | Workflow selection | Use `--run-id`; there is no workflow-path CLI option. Excluded runs and workflow paths appear in `provenance.scope`. Active required contexts still apply. |
 | `--policy-file FILE` | Read a local strict JSON policy of at most 64 KiB. Requires `--target-ref` and at least one `--run-id`; bind the policy to the exact observed run attempt. |
+| `--explain` | Add a complete, bounded coverage snapshot and review-only suggestions to `audit` or `demo`. Default output is unchanged. |
+| `compare --before FILE --after FILE` | Read two saved local JSON reports, validate snapshots and compare observation-time coverage. No GitHub collection or file writes. |
 | `--help`, `demo --help`, `audit --help` | Print usage text without collecting evidence. |
 | `--version` | Print the installed package name and version. |
 
 Audit options can be reordered. Only `--run-id` may repeat. Unrecognized options, duplicate singleton options and invalid values exit `1`.
+
+`compare` exits `0` for valid comparable reports, even when changes exist; it exits `4` for invalid or incomparable evidence and `1` for usage or unexpected failures. A disappeared finding is not proof of repair. A snapshot digest checks internal consistency, not who produced the file. Current ruleset observations do not prove what the control plane was at an earlier commit. See [local coverage and comparison](docs/local-coverage.md) for working commands, input ceilings and interpretation.
+
+From a current source checkout with dependencies installed, this synthetic no-drift example saves one fresh report and compares it with itself. Run the PowerShell lines in order:
+
+```powershell
+$gategraphSaved = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-snapshot-' + [guid]::NewGuid().ToString('N') + '.json')
+node ./bin/gategraph.mjs demo --explain | Out-File -LiteralPath $gategraphSaved -Encoding utf8 -NoClobber -ErrorAction Stop
+$gategraphLocalDemoExit = $LASTEXITCODE
+if ($gategraphLocalDemoExit -ne 2) { throw 'Expected synthetic finding exit 2; retain the report.' }
+node ./bin/gategraph.mjs compare --before $gategraphSaved --after $gategraphSaved
+$gategraphCompareExit = $LASTEXITCODE
+if ($gategraphCompareExit -ne 0) { throw 'Comparison unavailable; retain the report.' }
+```
 
 Workflow parsing and name expansion have [local resource ceilings](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/runtime-resource-limits.md). Exceeding them returns `WORKFLOW_RESOURCE_LIMIT_EXCEEDED` as a collection error. These are analyzer limits, not GitHub Actions validity rules or whole-process memory/time guarantees.
 

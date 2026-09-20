@@ -6,6 +6,8 @@ import { auditControlPlane } from '../src/audit-control-plane.mjs';
 import { collectWithGh } from '../src/gh-adapter.mjs';
 import { createDemoInput, DEMO_SCENARIOS } from '../src/demo-evidence.mjs';
 import { readAuthoredPolicy, policyMatchesRequest, createPolicyErrorInput, applyAuthoredPolicy } from '../src/policy-input.mjs';
+import { readSavedReport } from '../src/report-input.mjs';
+import { compareCoverage } from '../src/coverage-snapshot.mjs';
 
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const SHA = /^[0-9a-f]{40}$/i;
@@ -13,13 +15,14 @@ const BRANCH_REF = /^refs\/heads\/[A-Za-z0-9._\-/]+$/;
 const RUN_ID = /^[1-9][0-9]*$/;
 const USAGE = 'Usage: gategraph audit --repo owner/name --sha 40-hex-commit\n';
 const DEMO_USAGE = 'Usage: gategraph demo [--scenario finding|policy-review|unknown|collection-error]\n';
+const COMPARE_USAGE = 'Usage: gategraph compare --before FILE --after FILE\n';
 const HELP = [
   'GateGraph CI - experimental, read-only merge-gate analysis', '',
   'First task: gategraph demo',
   'The demo uses synthetic fixtures through the real audit core.',
   'Its runtime needs no credentials, network, GitHub CLI, or source checkout.',
   'Default demo result: finding; exit 2 is expected.', '',
-  DEMO_USAGE.trimEnd(), USAGE.trimEnd(),
+  DEMO_USAGE.trimEnd(), USAGE.trimEnd(), COMPARE_USAGE.trimEnd(),
   'Usage: gategraph --help', 'Usage: gategraph --version', '',
   'Audit and demo write one JSON report to stdout.',
   'Help and version write text to stdout without collecting evidence.',
@@ -32,6 +35,8 @@ const HELP = [
   'Authored policy is an operator assertion, not authenticated maintainer approval. Retain its evidence.',
   'Never mark all-needs propagation from dependency ancestry alone.',
   'Optional --explain on audit or demo adds a bounded coverage snapshot and review-only suggestions.',
+  'Compare reads two local saved reports only; it never collects evidence or changes GitHub state.',
+  'Compare exits: comparable=0; unavailable or invalid saved evidence=4; usage/failure=1.',
   'GateGraph does not execute workflows or change GitHub state.', '',
 ].join('\n');
 const EXIT_BY_STATUS = new Map([
@@ -44,10 +49,21 @@ const EXIT_BY_STATUS = new Map([
 function parseCommand(argv) {
   if (!Array.isArray(argv) || !argv.every((value) => typeof value === 'string')) return null;
   if ((argv.length === 1 && argv[0] === '--help') ||
-    (argv.length === 2 && ['demo', 'audit'].includes(argv[0]) && argv[1] === '--help')) {
+    (argv.length === 2 && ['demo', 'audit', 'compare'].includes(argv[0]) && argv[1] === '--help')) {
     return { kind: 'help' };
   }
   if (argv.length === 1 && argv[0] === '--version') return { kind: 'version' };
+  if (argv[0] === 'compare') {
+    if (argv.length !== 5) return null;
+    const options = new Map();
+    for (let index = 1; index < argv.length; index += 2) {
+      if (!['--before', '--after'].includes(argv[index]) || options.has(argv[index]) ||
+        !argv[index + 1] || argv[index + 1].startsWith('--')) return null;
+      options.set(argv[index], argv[index + 1]);
+    }
+    if (options.size !== 2) return null;
+    return { kind: 'compare', before: options.get('--before'), after: options.get('--after') };
+  }
   if (argv[0] === 'demo') {
     let scenario = 'finding';
     let explain = false;
@@ -110,7 +126,7 @@ export async function runCli(argv, dependencies = {}) {
 
   const command = parseCommand(argv);
   if (!command) {
-    stderr.write(argv?.[0] === 'demo' ? DEMO_USAGE : USAGE);
+    stderr.write(argv?.[0] === 'demo' ? DEMO_USAGE : argv?.[0] === 'compare' ? COMPARE_USAGE : USAGE);
     return 1;
   }
 
@@ -123,6 +139,21 @@ export async function runCli(argv, dependencies = {}) {
       const { name, version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
       stdout.write(`${name} ${version}\n`);
       return 0;
+    }
+    if (command.kind === 'compare') {
+      const reader = dependencies.readSavedReport ?? readSavedReport;
+      let result;
+      try {
+        const before = await reader(command.before);
+        const after = await reader(command.after);
+        result = compareCoverage(before, after);
+      } catch (error) {
+        if (error?.message !== 'SAVED_REPORT_INVALID') throw error;
+        result = { comparable: false, changes: [], before: null, after: null,
+          unresolved: ['SAVED_REPORT_INVALID'] };
+      }
+      stdout.write(`${JSON.stringify(result)}\n`);
+      return result.comparable ? 0 : 4;
     }
     let input;
     if (command.kind === 'demo') input = createDemoInput(command.scenario);

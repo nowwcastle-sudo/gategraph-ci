@@ -144,3 +144,31 @@ test('duplicate or valued explain flag is a usage error with no collection', asy
     assert.match(stderr.read(), /Usage:/);
   }
 });
+
+test('compare reads only named local reports, emits JSON and never collects', async () => {
+  const stdout = captureStream();
+  const seen = [];
+  const report = await (await import('../src/audit-control-plane.mjs')).auditControlPlane(
+    createDemoInput('finding'), { explain: true });
+  const exit = await runCli(['compare', '--after', 'after.json', '--before', 'before.json'], {
+    readSavedReport: async (path) => { seen.push(path); return report; },
+    collectWithGh: () => { throw new Error('must not collect'); },
+    stdout: stdout.stream,
+  });
+  assert.equal(exit, 0);
+  assert.deepEqual(seen, ['before.json', 'after.json']);
+  assert.equal(JSON.parse(stdout.read()).comparable, true);
+});
+
+test('compare invalid evidence exits 4 without raw input or collector calls', async () => {
+  const stdout = captureStream();
+  const stderr = captureStream();
+  const exit = await runCli(['compare', '--before', 'bad.json', '--after', 'after.json'], {
+    readSavedReport: async () => { throw new Error('SAVED_REPORT_INVALID'); },
+    collectWithGh: () => { throw new Error('must not collect'); },
+    stdout: stdout.stream, stderr: stderr.stream,
+  });
+  assert.equal(exit, 4);
+  assert.deepEqual(JSON.parse(stdout.read()).unresolved, ['SAVED_REPORT_INVALID']);
+  assert.equal(stderr.read(), '');
+});
