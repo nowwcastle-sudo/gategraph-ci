@@ -35,17 +35,18 @@ Critical/Important breakage.
 
 | Check | Result | Source |
 |---|---|---|
-| `npm test` | 300 tests, 300 pass, 0 fail; exit 0 | Runtime fix `28fd4d1`; implementer execution report. Separate raw stdout file not established. |
+| `npm test` | 300 tests, 300 pass, 0 fail; exit 0 | Direct run at `d0204bae22a2ced518a22e67b53cf59e11e7dc89` on 2026-09-24. Local raw stdout log SHA-256 `2c69a13c2003b1393403597d39bbdf8eb207d3b056f60d7a6f5aeb85b8e0c3d9`. Earlier implementer report at `28fd4d1` remains separate. |
 | Documentation contract | 6 tests, 6 pass; exit 0 | README correction `b53e5f2c19f28500f425fbcd52b7a03304a652a9`. |
 | `npm test -- test/installed-package.test.mjs` | 10 tests, 10 pass; exit 0 | Fresh package after README correction; direct command log retained. |
 | Candidate membership and offline use | Exact 12 members; installed demo/explain/compare and Windows command shim passed | Same fresh final package. |
-| Dedicated static security diff review | All six changed source files reviewed; no reportable findings | Sealed scan `b737fb57-5af6-453b-8311-d3db254711d4` at `28fd4d1`. |
+| Dedicated static security diff review | Six changed source files reviewed; zero reportable findings; canonical coverage **partial** with one deferred discovery-accounting item | Sealed scan `b737fb57-5af6-453b-8311-d3db254711d4` at `28fd4d1`. |
 
 Final candidate TGZ SHA-256:
 `0d599a8358340c35f93c71774f4f3a5316a3a36137a402819ded237b7a8c29be`.
 The README-only correction leaves `src`, `bin`, package metadata and lockfile
-identical to the tested/security-reviewed runtime. The earlier full suite
-was not repeated for prose changes. README now distinguishes the source
+identical to the security-reviewed runtime. The complete suite was subsequently
+rerun once at the current source head to preserve a direct final-source log.
+README now distinguishes the source
 candidate's four-axis/128-combination limit and 12-file package from the
 older release. Previous artifact hashes above remain historical, not aliases
 for this TGZ.
