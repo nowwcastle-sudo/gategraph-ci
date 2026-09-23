@@ -2,7 +2,7 @@
 
 [English](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.md) | [한국어](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.ko.md)
 
-GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 CLI(명령줄 도구)입니다. 병합 정책을 강제하거나 저장소가 안전하다고 증명하지 않습니다. 유지관리자의 실제 도입과 운영 환경 적합성은 확인되지 않았습니다.
+GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 CLI(명령줄 도구)입니다. 병합 정책을 강제하거나 저장소가 안전하다고 증명하지 않습니다. 유지관리자가 실제로 도입했는지, 운영 환경에 적합한지는 확인되지 않았습니다.
 
 병합을 막아야 할 작업이 실패해도 GitHub의 필수 검사가 모두 통과할 수 있는지 살펴볼 때 사용합니다. *필수 컨텍스트(required context)*는 브랜치 규칙에서 요구하는 정확한 검사 이름이고, *voting 작업*은 실패하면 병합을 막도록 의도한 작업입니다. GateGraph는 워크플로 작업, 실제 검사 실행, 현재 브랜치 규칙, 명시적 정책을 대조해 둘 사이의 누락을 찾습니다.
 
@@ -11,7 +11,7 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 릴리스 목표는 `v0.2.0-experimental.2`, 패키지는 `gategraph-ci@0.2.0-experimental.2`입니다.
 실수로 npm에 게시하지 않도록 패키지의 `private: true`를 유지합니다. 공개 소스와 GitHub 릴리스 다운로드는 npm 게시 없이 사용할 수 있습니다.
 
-`v0.2.0-experimental.2` 후보를 묶으면 `README.ko.md`와 현재 실행 모듈을 포함해 12개 파일이 됩니다. 이미 공개된 `v0.2.0-experimental.1`은 한국어판이 없는 8개 파일의 과거 릴리스이며 기존 파일과 체크섬을 그대로 유지합니다.
+`v0.2.0-experimental.2` 후보 패키지에는 `README.ko.md`와 현재 실행 모듈을 포함해 파일 12개가 들어갑니다. 이미 공개된 `v0.2.0-experimental.1`은 한국어판이 없는 8개 파일의 과거 릴리스입니다. 그 파일과 체크섬은 그대로 유지합니다.
 
 `.2` 후보는 아래의 `--explain`과 `compare`를 지원합니다. 기존 `.1` 다운로드에서는 지원하지 않습니다.
 
@@ -35,7 +35,7 @@ audit 옵션의 순서는 바꿀 수 있습니다. 반복 가능한 옵션은 `-
 
 `compare`는 비교 가능한 두 보고서면 변화가 있어도 종료 코드 `0`, 증거가 잘못됐거나 비교할 수 없으면 `4`, 사용법 오류나 예상 밖 실패면 `1`입니다. finding이 사라졌다는 이유만으로 수리됐다고 판단하지 않습니다. snapshot digest가 확인하는 범위는 파일 내부의 일관성이며 작성자 신원은 인증하지 않습니다. 현재 관측한 규칙이 과거 커밋 시점에도 같았다고 소급할 수 없습니다. 실행 명령과 입력 상한은 [로컬 coverage·비교 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/local-coverage.md)를 보세요.
 
-현재 소스 체크아웃에 의존성을 설치한 뒤 아래 PowerShell 명령을 차례로 실행하면 새 가상 보고서를 저장하고 그 파일을 자기 자신과 비교할 수 있습니다. 변화가 없는 예시입니다.
+현재 소스 체크아웃에 의존성을 설치한 뒤 아래 PowerShell 명령을 차례로 실행하면 새 가상 보고서를 저장할 수 있습니다. 같은 파일을 비교 전후 입력으로 사용하므로 결과에는 변화가 없습니다.
 
 ```powershell
 $gategraphSaved = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-snapshot-' + [guid]::NewGuid().ToString('N') + '.json')
@@ -51,7 +51,7 @@ if ($gategraphCompareExit -ne 0) { throw '비교할 수 없습니다. 보고서�
 
 ## 로그인 없이 실험 릴리스 다운로드
 
-`v0.2.0-experimental.2`와 파일이 게시된 뒤 Node.js 24와 npm으로 실행하세요. PowerShell의 같은 창에서 한 줄씩 실행합니다.
+`v0.2.0-experimental.2` 릴리스와 파일이 게시되면 Node.js 24와 npm을 준비하세요. 아래 PowerShell 명령은 같은 창에서 한 줄씩 실행합니다.
 게시된 공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
 
 ```powershell
@@ -118,7 +118,7 @@ $gategraphOutput
 
 데모는 가상 증거를 실제 분석 코어에 넣습니다. JSON 보고서 하나에 `status: finding`, `subject.kind: fixture`, 저장소 `fixture/synthetic-demo`가 표시되어야 합니다. 병합을 막지 못하는 voting 실패 경로 하나를 넣은 예제이므로 **종료 코드 2가 정상 기대값**입니다.
 
-설치 후 데모 실행에는 인증정보, 네트워크, GitHub CLI, 소스 체크아웃, 테스트 보조 도구가 필요 없습니다. GateGraph 자체는 npm에 게시되어 있지 않습니다.
+설치 후 데모 실행에는 인증정보, 네트워크, GitHub CLI, 소스 체크아웃, 테스트 보조 도구가 필요 없습니다. GateGraph 패키지는 위에서 확인한 GitHub 릴리스 TGZ로 설치합니다.
 
 같은 PowerShell 변수를 사용해 다른 시나리오나 설치된 명령 정보를 확인할 수 있습니다.
 
@@ -238,7 +238,7 @@ gategraph audit --repo owner/name --sha 40-hex-commit --run-id ID --target-ref r
 | 워크플로당 작업 수 | 128 |
 | 선언한 작업 이름 길이 | 1,024 |
 | 지원하는 matrix 축의 값 개수 | 128 |
-| 현재 소스 후보의 정적 matrix 축 개수 | 4 |
+| `.2` 후보의 정적 matrix 축 개수 | 4 |
 | 작업당 전체 matrix 조합 수 | 128 |
 | 문자열로 바꾼 matrix 값 길이 | 256 |
 | 확장된 검사 이름 하나의 길이 | 2,048 |
