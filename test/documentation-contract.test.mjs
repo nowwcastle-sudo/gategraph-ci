@@ -176,7 +176,7 @@ test('first-use commands capture native exits immediately and preserve the compl
 });
 
 test('first-use mutations select their block even after an earlier identical token', async () => {
-  const readme = await read('README.md');
+  const readme = (await read('README.md')).replace(/\r\n?/g, '\n');
   const prefix = '$gategraphDemoExit = $LASTEXITCODE\nOut-File -NoClobber\n';
   const prefixed = `${prefix}${readme}`;
   const mutant = replaceInPowerShellBlock(prefixed, '### Save and read back the complete demo report',
