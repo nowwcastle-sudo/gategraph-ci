@@ -2,16 +2,18 @@
 
 [English](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.md) | [한국어](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/README.ko.md)
 
-GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 CLI(명령줄 도구)입니다. 병합 정책을 강제하거나 저장소가 안전하다고 증명하지 않습니다. 유지관리자의 실제 도입과 운영 환경 적합성은 확인되지 않았습니다.
+GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 CLI(명령줄 도구)입니다. 병합 정책을 강제하거나 저장소가 안전하다고 증명하지 않습니다. 유지관리자가 실제로 도입했는지, 운영 환경에 적합한지는 확인되지 않았습니다.
 
 병합을 막아야 할 작업이 실패해도 GitHub의 필수 검사가 모두 통과할 수 있는지 살펴볼 때 사용합니다. *필수 컨텍스트(required context)*는 브랜치 규칙에서 요구하는 정확한 검사 이름이고, *voting 작업*은 실패하면 병합을 막도록 의도한 작업입니다. GateGraph는 워크플로 작업, 실제 검사 실행, 현재 브랜치 규칙, 명시적 정책을 대조해 둘 사이의 누락을 찾습니다.
 
 라이선스는 Apache License 2.0입니다. [LICENSE](LICENSE)를 참고하세요.
 소스는 [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci)의 `main` 브랜치입니다.
-릴리스는 `v0.2.0-experimental.1`, 패키지는 `gategraph-ci@0.2.0-experimental.1`입니다.
+릴리스 목표는 `v0.2.0-experimental.2`, 패키지는 `gategraph-ci@0.2.0-experimental.2`입니다.
 실수로 npm에 게시하지 않도록 패키지의 `private: true`를 유지합니다. 공개 소스와 GitHub 릴리스 다운로드는 npm 게시 없이 사용할 수 있습니다.
 
-저장소 문서는 릴리스 압축 파일보다 최신일 수 있습니다. 기존 `v0.2.0-experimental.1` 배포 파일에는 한국어판이 없으며 저장소에서 읽을 수 있습니다. 현재 소스로 새로 빌드하면 npm이 `README.ko.md`를 자동 포함하므로 파일이 9개가 됩니다. 이번 문서 수정은 릴리스 파일이나 체크섬을 바꾸지 않습니다.
+`v0.2.0-experimental.2` 후보 패키지에는 `README.ko.md`와 현재 실행 모듈을 포함해 파일 12개가 들어갑니다. 이미 공개된 `v0.2.0-experimental.1`은 한국어판이 없는 8개 파일의 과거 릴리스입니다. 그 파일과 체크섬은 그대로 유지합니다.
+
+`.2` 후보는 아래의 `--explain`과 `compare`를 지원합니다. 기존 `.1` 다운로드에서는 지원하지 않습니다.
 
 ## 명령별 기능
 
@@ -24,26 +26,42 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 | `--target-ref refs/heads/BRANCH` | 실행 증거에서 이미 확인된 대상 브랜치를 검증합니다. 빠진 대상 정보를 만들어 넣을 수 없습니다. |
 | 워크플로 선택 | `--run-id`를 사용합니다. 워크플로 경로를 직접 지정하는 CLI 옵션은 없습니다. 제외한 실행과 워크플로 경로는 `provenance.scope`에 남으며 활성 필수 컨텍스트는 계속 적용됩니다. |
 | `--policy-file FILE` | 최대 64 KiB의 로컬 strict JSON 정책을 읽습니다. `--target-ref`와 하나 이상의 `--run-id`가 필요하며 정확한 관측 실행 차수에 정책을 연결합니다. |
+| `--explain` | `audit` 또는 `demo` 결과에 자원 상한을 지킨 전체 coverage snapshot과 검토용 제안을 더합니다. 기본 출력은 그대로입니다. |
+| `compare --before FILE --after FILE` | 저장한 로컬 JSON 보고서 2개를 검증하고 관측 시점의 coverage 변화를 비교합니다. GitHub 수집이나 파일 수정은 하지 않습니다. |
 | `--help`, `demo --help`, `audit --help` | 증거를 수집하지 않고 사용법을 출력합니다. |
 | `--version` | 설치된 패키지 이름과 버전을 출력합니다. |
 
 audit 옵션의 순서는 바꿀 수 있습니다. 반복 가능한 옵션은 `--run-id`뿐입니다. 알 수 없는 옵션, 단일 옵션의 중복, 잘못된 값은 종료 코드 `1`을 반환합니다.
 
+`compare`는 비교 가능한 두 보고서면 변화가 있어도 종료 코드 `0`, 증거가 잘못됐거나 비교할 수 없으면 `4`, 사용법 오류나 예상 밖 실패면 `1`입니다. finding이 사라졌다는 이유만으로 수리됐다고 판단하지 않습니다. snapshot digest가 확인하는 범위는 파일 내부의 일관성이며 작성자 신원은 인증하지 않습니다. 현재 관측한 규칙이 과거 커밋 시점에도 같았다고 소급할 수 없습니다. 실행 명령과 입력 상한은 [로컬 coverage·비교 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/local-coverage.md)를 보세요.
+
+현재 소스 체크아웃에 의존성을 설치한 뒤 아래 PowerShell 명령을 차례로 실행하면 새 가상 보고서를 저장할 수 있습니다. 같은 파일을 비교 전후 입력으로 사용하므로 결과에는 변화가 없습니다.
+
+```powershell
+$gategraphSaved = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-snapshot-' + [guid]::NewGuid().ToString('N') + '.json')
+node ./bin/gategraph.mjs demo --explain | Out-File -LiteralPath $gategraphSaved -Encoding utf8 -NoClobber -ErrorAction Stop
+$gategraphDemoExit = $LASTEXITCODE
+if ($gategraphDemoExit -ne 2) { throw '가상 finding의 종료 코드 2가 아닙니다. 보고서를 보존하세요.' }
+node ./bin/gategraph.mjs compare --before $gategraphSaved --after $gategraphSaved
+$gategraphCompareExit = $LASTEXITCODE
+if ($gategraphCompareExit -ne 0) { throw '비교할 수 없습니다. 보고서를 보존하세요.' }
+```
+
 워크플로 파싱과 이름 확장에는 [로컬 자원 상한](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/runtime-resource-limits.md)이 있습니다. 초과하면 수집 오류 `WORKFLOW_RESOURCE_LIMIT_EXCEEDED`를 반환합니다. 이는 분석기의 상한이며 GitHub Actions의 유효성 규칙이나 전체 프로세스의 메모리·시간 보장값이 아닙니다.
 
 ## 로그인 없이 실험 릴리스 다운로드
 
-Node.js 24와 npm이 필요합니다. PowerShell의 같은 창에서 한 줄씩 실행하세요.
-공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
+`v0.2.0-experimental.2` 릴리스와 파일이 게시되면 Node.js 24와 npm을 준비하세요. 아래 PowerShell 명령은 같은 창에서 한 줄씩 실행합니다.
+게시된 공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 $gategraphAssets = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-release-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $gategraphAssets -ErrorAction Stop | Out-Null
-$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.1'
-$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.1.tgz'
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz') -OutFile $gategraphTarball
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
+$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.2'
+$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.2.tgz'
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz') -OutFile $gategraphTarball
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
 $gategraphHash = ((Get-Content -LiteralPath ($gategraphTarball + '.sha256') -Raw).Trim() -split '\s+')[0]
 if ($gategraphHash -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid checksum file; stop.' }
 if ((Get-FileHash -LiteralPath $gategraphTarball -Algorithm SHA256).Hash -ine $gategraphHash) { throw 'Checksum mismatch; stop and retain downloads.' }
@@ -100,7 +118,7 @@ $gategraphOutput
 
 데모는 가상 증거를 실제 분석 코어에 넣습니다. JSON 보고서 하나에 `status: finding`, `subject.kind: fixture`, 저장소 `fixture/synthetic-demo`가 표시되어야 합니다. 병합을 막지 못하는 voting 실패 경로 하나를 넣은 예제이므로 **종료 코드 2가 정상 기대값**입니다.
 
-설치 후 데모 실행에는 인증정보, 네트워크, GitHub CLI, 소스 체크아웃, 테스트 보조 도구가 필요 없습니다. GateGraph 자체는 npm에 게시되어 있지 않습니다.
+설치 후 데모 실행에는 인증정보, 네트워크, GitHub CLI, 소스 체크아웃, 테스트 보조 도구가 필요 없습니다. GateGraph 패키지는 위에서 확인한 GitHub 릴리스 TGZ로 설치합니다.
 
 같은 PowerShell 변수를 사용해 다른 시나리오나 설치된 명령 정보를 확인할 수 있습니다.
 
@@ -210,9 +228,9 @@ gategraph audit --repo owner/name --sha 40-hex-commit --run-id ID --target-ref r
 
 ## 지원하는 워크플로와 자원 상한
 
-GateGraph는 워크플로 텍스트를 데이터로 파싱합니다. 지원 범위는 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 작업 이름에 `matrix.KEY`로 참조한 문자열·숫자·불리언 값의 단일 matrix 축입니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다.
+`.2` 후보는 워크플로 텍스트를 데이터로 파싱합니다. 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 최대 4개의 정적 matrix 축을 지원합니다. 축 전체의 조합은 작업당 128개 이하여야 합니다. 값은 문자열·숫자·불리언만 허용하며, 모든 축을 작업 이름에서 `matrix.KEY`로 참조해야 하고 펼친 이름이 서로 달라야 합니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다. 기존 `v0.2.0-experimental.1` 다운로드는 단일 축만 지원합니다.
 
-재사용 워크플로 작업(`jobs.<id>.uses`), 작업 수준 `continue-on-error`, 다중 matrix 축, include/exclude matrix, 그 밖의 작업 이름 표현식과 작업 조건은 지원 범위 밖입니다. 지원하지 않거나 모호한 증거는 `collection-error`로 처리합니다. 임의의 Actions 표현식을 평가하거나 셸 단계를 실행해 동작을 알아내지 않습니다. 트리거 이름은 파싱하지만 이벤트·경로 조건 전체를 시뮬레이션하지는 않습니다.
+재사용 워크플로 작업(`jobs.<id>.uses`), 작업 수준 `continue-on-error`, 동적 matrix와 include/exclude matrix, 그 밖의 작업 이름 표현식과 작업 조건은 지원 범위 밖입니다. 지원하지 않거나 모호한 증거는 `collection-error`로 처리합니다. 임의의 Actions 표현식을 평가하거나 셸 단계를 실행해 동작을 알아내지 않습니다. 트리거 이름은 파싱하지만 이벤트·경로 조건 전체를 시뮬레이션하지는 않습니다.
 
 | 로컬 분석기 자원 | 상한 |
 |---|---:|
@@ -220,6 +238,8 @@ GateGraph는 워크플로 텍스트를 데이터로 파싱합니다. 지원 범�
 | 워크플로당 작업 수 | 128 |
 | 선언한 작업 이름 길이 | 1,024 |
 | 지원하는 matrix 축의 값 개수 | 128 |
+| `.2` 후보의 정적 matrix 축 개수 | 4 |
+| 작업당 전체 matrix 조합 수 | 128 |
 | 문자열로 바꾼 matrix 값 길이 | 256 |
 | 확장된 검사 이름 하나의 길이 | 2,048 |
 | 감사 전체의 확장된 검사 이름 길이 합 | 65,536 |
@@ -261,13 +281,13 @@ Node 24가 필요합니다. 소스 체크아웃의 저장소 루트에서 PowerS
    $LASTEXITCODE
    ```
 
-설치 패키지 테스트는 `npm test`에서 npm CLI 경로를 받아 새 tarball을 만들고 `LICENSE`와 `README.ko.md`를 포함한 정확한 9개 파일 목록을 확인한 뒤 별도 임시 폴더에 오프라인으로 설치합니다. 이 테스트를 `node --test`로 직접 실행하는 방식은 지원하지 않으며 `npm test`를 사용하라는 안내가 나옵니다. 네트워크가 필요한 준비 단계가 앞서 설명한 설치 후 데모의 오프라인 실행 조건을 바꾸지는 않습니다.
+설치 패키지 테스트는 `npm test`에서 npm CLI 경로를 받아 새 tarball을 만듭니다. 그다음 `LICENSE`와 `README.ko.md`를 포함한 정확한 12개 파일 목록을 확인하고 별도 임시 폴더에 오프라인으로 설치합니다. 이 테스트를 `node --test`로 직접 실행하는 방식은 지원하지 않으며 `npm test`를 사용하라는 안내가 나옵니다. 네트워크가 필요한 준비 단계가 앞서 설명한 설치 후 데모의 오프라인 실행 조건을 바꾸지는 않습니다.
 
 테스트는 임시 파일을 보존하며 온라인 설치로 우회하지 않습니다. `npm run pack:check`는 dry-run 목록을 출력하고 설치 패키지 테스트가 실제 파일 구성과 실행 결과를 검증합니다. CI 증거는 정확히 해당 소스 커밋과 실행 환경에만 적용됩니다. 새 후보에는 별도 증거가 필요합니다.
 
 ## 소스 빌드와 기여
 
-깨끗한 체크아웃, 정확한 9개 파일 압축본, 체크섬, 오프라인 설치, 가상 데모는 [소스 빌드 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md)를 따르세요. 소스 압축본과 설치용 TGZ는 서로 다른 파일입니다.
+깨끗한 체크아웃, 정확한 12개 파일 압축본, 체크섬, 오프라인 설치, 가상 데모는 [소스 빌드 안내](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md)를 따르세요. 소스 압축본과 설치용 TGZ는 서로 다른 파일입니다.
 
 [CONTRIBUTING](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CONTRIBUTING.md), [SECURITY](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/SECURITY.md), [CODE_OF_CONDUCT](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CODE_OF_CONDUCT.md)를 읽어주세요. 재현에는 가상 데이터를 사용하고 실제 저장소 증거는 민감한 내용을 가리세요.
 

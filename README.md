@@ -8,10 +8,12 @@ Use it to investigate whether a job that should block a merge can fail while Git
 
 License: Apache License 2.0. See [LICENSE](LICENSE).
 Source: [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci), branch `main`.
-Release: `v0.2.0-experimental.1`; package: `gategraph-ci@0.2.0-experimental.1`.
+Release target: `v0.2.0-experimental.2`; package: `gategraph-ci@0.2.0-experimental.2`.
 The package stays `private: true` to prevent accidental npm publication; public source and GitHub release downloads do not require an npm publication.
 
-Repository documentation can be newer than the release archive. The published `v0.2.0-experimental.1` archive does not include the Korean edition; read it in the repository. New builds from current source contain nine files because npm automatically includes `README.ko.md`. These documentation changes do not replace the released assets or change their checksums.
+The `v0.2.0-experimental.2` candidate packs 12 files, including `README.ko.md` and the current runtime modules. The published `v0.2.0-experimental.1` archive remains an eight-file historical release with its original checksum and without the Korean edition.
+
+The `.2` candidate supports `--explain` and `compare`. The historical `.1` download does not.
 
 ## What the commands do
 
@@ -24,27 +26,43 @@ Repository documentation can be newer than the release archive. The published `v
 | `--target-ref refs/heads/BRANCH` | Assert the branch target already established by run evidence. It cannot invent a missing target. |
 | Workflow selection | Use `--run-id`; there is no workflow-path CLI option. Excluded runs and workflow paths appear in `provenance.scope`. Active required contexts still apply. |
 | `--policy-file FILE` | Read a local strict JSON policy of at most 64 KiB. Requires `--target-ref` and at least one `--run-id`; bind the policy to the exact observed run attempt. |
+| `--explain` | Add a complete, bounded coverage snapshot and review-only suggestions to `audit` or `demo`. Default output is unchanged. |
+| `compare --before FILE --after FILE` | Read two saved local JSON reports, validate snapshots and compare observation-time coverage. No GitHub collection or file writes. |
 | `--help`, `demo --help`, `audit --help` | Print usage text without collecting evidence. |
 | `--version` | Print the installed package name and version. |
 
 Audit options can be reordered. Only `--run-id` may repeat. Unrecognized options, duplicate singleton options and invalid values exit `1`.
 
+`compare` exits `0` for valid comparable reports, even when changes exist; it exits `4` for invalid or incomparable evidence and `1` for usage or unexpected failures. A disappeared finding is not proof of repair. A snapshot digest checks internal consistency, not who produced the file. Current ruleset observations do not prove what the control plane was at an earlier commit. See [local coverage and comparison](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/local-coverage.md) for working commands, input ceilings and interpretation.
+
+From a current source checkout with dependencies installed, this synthetic no-drift example saves one fresh report and compares it with itself. Run the PowerShell lines in order:
+
+```powershell
+$gategraphSaved = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-snapshot-' + [guid]::NewGuid().ToString('N') + '.json')
+node ./bin/gategraph.mjs demo --explain | Out-File -LiteralPath $gategraphSaved -Encoding utf8 -NoClobber -ErrorAction Stop
+$gategraphLocalDemoExit = $LASTEXITCODE
+if ($gategraphLocalDemoExit -ne 2) { throw 'Expected synthetic finding exit 2; retain the report.' }
+node ./bin/gategraph.mjs compare --before $gategraphSaved --after $gategraphSaved
+$gategraphCompareExit = $LASTEXITCODE
+if ($gategraphCompareExit -ne 0) { throw 'Comparison unavailable; retain the report.' }
+```
+
 Workflow parsing and name expansion have [local resource ceilings](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/runtime-resource-limits.md). Exceeding them returns `WORKFLOW_RESOURCE_LIMIT_EXCEEDED` as a collection error. These are analyzer limits, not GitHub Actions validity rules or whole-process memory/time guarantees.
 
 ## Download the experimental release anonymously
 
-Use Node.js 24 and npm. In PowerShell, run each line in the same session.
-No GitHub sign-in is needed for these public assets. Stop on a failed download
+After `v0.2.0-experimental.2` and its assets are published, use Node.js 24 and npm. In PowerShell, run each line in the same session.
+No GitHub sign-in is needed for published public assets. Stop on a failed download
 or checksum mismatch and retain the directory; never overwrite an old artifact.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 $gategraphAssets = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-release-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $gategraphAssets -ErrorAction Stop | Out-Null
-$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.1'
-$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.1.tgz'
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz') -OutFile $gategraphTarball
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
+$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.2'
+$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.2.tgz'
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz') -OutFile $gategraphTarball
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
 $gategraphHash = ((Get-Content -LiteralPath ($gategraphTarball + '.sha256') -Raw).Trim() -split '\s+')[0]
 if ($gategraphHash -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid checksum file; stop.' }
 if ((Get-FileHash -LiteralPath $gategraphTarball -Algorithm SHA256).Hash -ine $gategraphHash) { throw 'Checksum mismatch; stop and retain downloads.' }
@@ -219,15 +237,17 @@ Reports can contain repository names, SHAs, branch names and run/workflow identi
 
 ## Supported workflow subset and limits
 
-GateGraph parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and one matrix axis with scalar string/number/boolean values referenced by `matrix.KEY` in the job name. A job-level condition, when present, must be the literal `always()`.
+The `.2` candidate parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and up to four static matrix axes with at most 128 combinations in total. Values must be scalar strings, numbers or booleans; every axis must appear as `matrix.KEY` in the job name, and expanded names must be unique. A job-level condition, when present, must be the literal `always()`. The historical `v0.2.0-experimental.1` download supports only one axis.
 
-Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, multiple matrix axes, include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
+Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, dynamic or include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
 
 | Local analyzer resource | Ceiling |
 |---|---:|
 | UTF-8 text per workflow / all workflows | 1 MiB / 4 MiB |
 | Jobs per workflow | 128 |
 | Declared job-name length | 1,024 |
+| Static matrix axes in the current source candidate | 4 |
+| Total matrix combinations per job | 128 |
 | Values per supported matrix axis | 128 |
 | Matrix value length after string conversion | 256 |
 | One expanded check-name length | 2,048 |
@@ -270,13 +290,13 @@ From a source checkout with Node 24, open PowerShell at the repository root. Run
    $LASTEXITCODE
    ```
 
-The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact nine-member list (including `LICENSE` and `README.ko.md`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
+The installed-package test obtains npm's CLI path from `npm test`, creates a fresh tarball, checks its exact twelve-member list (including `LICENSE` and `README.ko.md`), and installs offline into a separate temporary prefix. Running that test directly with `node --test` is unsupported and gives a clear instruction to use `npm test`. These connected preparation steps do not change the installed demo's offline-runtime requirements described above.
 
 The test retains temporary artifacts and performs no online install fallback. `npm run pack:check` prints the dry-run manifest; the installed-package test performs the actual membership and runtime assertions. CI evidence applies only to its exact source commit and runner; a new candidate needs its own evidence.
 
 ## Build from source and contribute
 
-Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact nine-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
+Use the [source build guide](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/docs/release/public-candidate.md) for a clean checkout, exact twelve-file archive, checksum, offline install and synthetic demo. The source archive and installable TGZ are different artifacts.
 
 Read [CONTRIBUTING](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CONTRIBUTING.md), [SECURITY](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/SECURITY.md), and [CODE_OF_CONDUCT](https://github.com/nowwcastle-sudo/gategraph-ci/blob/main/CODE_OF_CONDUCT.md). Use synthetic reproductions and redact real repository evidence.
 

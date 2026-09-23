@@ -220,7 +220,7 @@ test('feeds provider-qualified live shapes through the core audit seam', async (
     },
     {
       analyzer: 'gategraph-ci',
-      version: '0.2.0-experimental.1',
+      version: '0.2.0-experimental.2',
       contract: 'gategraph-audit/v1',
     },
   );

@@ -49,7 +49,7 @@ Do not use "safe", "covered", or "no protection" when evidence is incomplete. Pr
 
 ## Current boundary
 
-GateGraph is an experimental public CLI at https://github.com/nowwcastle-sudo/gategraph-ci, with clean public history. Version 0.2.0-experimental.1 includes an installed synthetic demo, explicit observed-run scope, causal diagnostics, coordinate-bound operator-authored policy and bounded workflow processing.
+GateGraph is an experimental public CLI at https://github.com/nowwcastle-sudo/gategraph-ci, with clean public history. The 0.2.0-experimental.2 candidate adds bounded coverage explanation and local comparison to the installed synthetic demo, explicit observed-run scope, causal diagnostics, coordinate-bound operator-authored policy and bounded workflow processing. The published 0.2.0-experimental.1 release remains a separate historical artifact.
 
 Authored policy is not authenticated maintainer approval. Aggregate propagation and voting intent are never inferred from dependency ancestry. UNKNOWN is not approval. Public source and GitHub release assets do not imply npm publication, production certification or demonstrated adoption.
 

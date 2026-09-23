@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import { parseDocument } from 'yaml';
+import { expandStaticMatrix } from './static-matrix.mjs';
+import { buildCoverageSnapshot, canonicalDigest } from './coverage-snapshot.mjs';
 
 const ANALYZER = 'gategraph-ci';
-const ANALYZER_VERSION = '0.2.0-experimental.1';
+const ANALYZER_VERSION = '0.2.0-experimental.2';
 const ANALYSIS_CONTRACT = 'gategraph-audit/v1';
 const ANALYZED_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SHA_40 = /^[0-9a-f]{40}$/i;
@@ -11,7 +13,6 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const BRANCH_REF = /^refs\/heads\/[A-Za-z0-9._\-\/]+$/;
 const SAFE_ENDPOINT = /^repos\/[A-Za-z0-9._~%+?=&\-/]+$/;
 const SAFE_POLICY_EVIDENCE_ID = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,255}$/;
-const MATRIX_NAME_EXPRESSION = /\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}/g;
 const MAX_WORKFLOW_BYTES = 1024 * 1024;
 const MAX_AUDIT_WORKFLOW_BYTES = 4 * MAX_WORKFLOW_BYTES;
 const MAX_JOBS_PER_WORKFLOW = 128;
@@ -79,6 +80,8 @@ const COLLECTION_DIAGNOSTICS = new Map([
  * @property {object | null} subject
  * @property {Array<object>} results
  * @property {{analyzer?: string, version?: string, contract?: string, analyzedAt?: string, sources: Array<object>, gatePolicies?: Array<object>, coordinates?: object}} provenance
+ * @property {object} [coverageSnapshot] Opt-in complete observation-time explanation.
+ * @property {Array<object>} [suggestions] Review-only actions for actual findings.
  */
 
 function isPlainObject(value) {
@@ -528,55 +531,15 @@ function normalizedJob(workflowPath, jobId, job, budget) {
   if (!isNonemptyString(declaredName)) return null;
   if (declaredName.length > MAX_JOB_NAME_LENGTH) return RESOURCE_LIMIT_EXCEEDED;
 
-  const expressions = [...declaredName.matchAll(MATRIX_NAME_EXPRESSION)];
-  const expressionKeys = [...new Set(expressions.map((match) => match[1]))];
-  let checkNames;
-  if (expressions.length === 0) {
-    if (declaredName.includes('${{') || Object.hasOwn(job, 'strategy')) return null;
-    if (budget.expandedChars + declaredName.length > MAX_AUDIT_EXPANDED_CHARS) return RESOURCE_LIMIT_EXCEEDED;
-    budget.expandedChars += declaredName.length;
-    checkNames = [declaredName];
-  } else {
-    if (expressionKeys.length !== 1) return null;
-    if (
-      !isPlainObject(job.strategy) ||
-      Object.keys(job.strategy).some((key) => key !== 'matrix') ||
-      !isPlainObject(job.strategy.matrix) ||
-      Object.keys(job.strategy.matrix).length !== 1 ||
-      !Object.hasOwn(job.strategy.matrix, expressionKeys[0])
-    ) {
-      return null;
-    }
-    const matrixValues = job.strategy.matrix[expressionKeys[0]];
-    if (
-      !Array.isArray(matrixValues) ||
-      matrixValues.length === 0 ||
-      matrixValues.some((item) => !['string', 'number', 'boolean'].includes(typeof item))
-    ) {
-      return null;
-    }
-    if (matrixValues.length > MAX_MATRIX_VALUES) return RESOURCE_LIMIT_EXCEEDED;
-    const replacementLengths = matrixValues.map((item) => String(item).length);
-    if (replacementLengths.some((length) => length > MAX_MATRIX_VALUE_LENGTH)) return RESOURCE_LIMIT_EXCEEDED;
-    const unchangedLength = declaredName.length - expressions.reduce((sum, match) => sum + match[0].length, 0);
-    const expandedLengths = replacementLengths.map((length) => unchangedLength + expressions.length * length);
-    const expandedTotal = expandedLengths.reduce((sum, length) => sum + length, 0);
-    if (
-      expandedLengths.some((length) => length > MAX_EXPANDED_NAME_LENGTH) ||
-      budget.expandedChars + expandedTotal > MAX_AUDIT_EXPANDED_CHARS
-    ) return RESOURCE_LIMIT_EXCEEDED;
-    budget.expandedChars += expandedTotal;
-    checkNames = matrixValues.map((item) => declaredName.replace(
-      MATRIX_NAME_EXPRESSION,
-      (match, key) => (key === expressionKeys[0] ? String(item) : match),
-    ));
-    if (
-      checkNames.some((name) => !isNonemptyString(name) || name.includes('${{')) ||
-      new Set(checkNames).size !== checkNames.length
-    ) {
-      return null;
-    }
-  }
+  const expanded = expandStaticMatrix({ name: declaredName, ...(Object.hasOwn(job, 'strategy') ? { strategy: job.strategy } : {}) }, {
+    maxValues: MAX_MATRIX_VALUES, maxValueLength: MAX_MATRIX_VALUE_LENGTH,
+    maxNameLength: MAX_JOB_NAME_LENGTH, maxExpandedNameLength: MAX_EXPANDED_NAME_LENGTH,
+    maxExpandedChars: MAX_AUDIT_EXPANDED_CHARS,
+  }, budget);
+  if (expanded.error === 'resource-limit') return RESOURCE_LIMIT_EXCEEDED;
+  if (expanded.error) return null;
+  const { cells } = expanded;
+  const checkNames = cells.map((cell) => cell.checkName);
 
   let needs = [];
   if (Object.hasOwn(job, 'needs')) {
@@ -596,7 +559,7 @@ function normalizedJob(workflowPath, jobId, job, budget) {
     condition = 'always()';
   }
 
-  return { workflowPath, jobId, checkNames, needs, condition };
+  return { workflowPath, jobId, checkNames, cells, needs, condition };
 }
 
 function validateDag(jobs) {
@@ -878,9 +841,10 @@ function uncoveredResult({
  * Audit a bounded control-plane input for an uncovered voting-job failure path.
  *
  * @param {AuditInput} input
+ * @param {{explain?: boolean}} [options]
  * @returns {Promise<AuditReport>}
  */
-export async function auditControlPlane(input) {
+export async function auditControlPlane(input, options = {}) {
   if (!input || typeof input !== 'object') {
     throw new TypeError('auditControlPlane input must be an object');
   }
@@ -1052,7 +1016,7 @@ export async function auditControlPlane(input) {
   const instancesByCheckName = new Map();
   for (const workflow of workflows) {
     for (const job of workflow.jobs) {
-      for (const checkName of job.checkNames) {
+      for (const { checkName, axes } of job.cells) {
         const observed = runEvidence.checkByName.get(checkName);
         if (!observed || observed.workflowPath !== workflow.path || instancesByCheckName.has(checkName)) {
           return collectionError(
@@ -1062,7 +1026,7 @@ export async function auditControlPlane(input) {
             { workflowPath: workflow.path, unresolvedPremises: ['JOB_CHECK_JOIN_UNRESOLVED'] },
           );
         }
-        const instance = { workflow, job, checkName, check: observed };
+        const instance = { workflow, job, checkName, axes, check: observed };
         jobInstances.push(instance);
         instancesByCheckName.set(checkName, instance);
       }
@@ -1166,6 +1130,95 @@ export async function auditControlPlane(input) {
       )
       : new Set(),
   }));
+  let coverageSnapshot;
+  if (options.explain === true) {
+    const provider = (item) => ({ kind: 'github-app', integrationId: item.check.provider.integrationId });
+    const producerId = (instance) => canonicalDigest([
+      instance.workflow.path, instance.job.jobId, instance.axes, provider(instance),
+    ]);
+    const gateId = (item) => canonicalDigest([
+      item.workflow.path, item.job.jobId, item.checkName, item.gate.integrationId, provider(item),
+    ]);
+    const gateSources = (item) => item.gate.sources.map((source) => ({ ...source }))
+      .sort((a, b) => {
+        const left = JSON.stringify([a.kind, a.id ?? a.ref]);
+        const right = JSON.stringify([b.kind, b.id ?? b.ref]);
+        return left < right ? -1 : left > right ? 1 : 0;
+      });
+    const edges = workflows.flatMap((workflow) => workflow.jobs.flatMap((job) => job.needs.map((dependency) => ({
+      workflowPath: workflow.path, fromJobId: dependency, toJobId: job.jobId,
+    }))));
+    const links = [];
+    const producers = jobInstances.map((instance) => {
+      const direct = gateCoverage.filter((gate) => gate.workflow.path === instance.workflow.path &&
+        gate.job.jobId === instance.job.jobId && gate.checkName === instance.checkName &&
+        gate.check.provider.integrationId === instance.check.provider.integrationId);
+      const aggregate = gateCoverage.filter((gate) => gate.workflow.path === instance.workflow.path &&
+        gate.ancestors.has(instance.job.jobId));
+      for (const gate of direct) links.push({ producerId: producerId(instance), gateId: gateId(gate),
+        kind: 'direct', evidence: { sources: gateSources(gate) } });
+      for (const gate of aggregate) links.push({ producerId: producerId(instance), gateId: gateId(gate),
+        kind: 'aggregate', evidence: { failurePropagation: 'all-needs',
+          evidenceFingerprint: gatePolicies.get(`${gate.workflow.path}/${gate.job.jobId}`).evidenceFingerprint } });
+      const mergePolicy = policy.get(`${instance.workflow.path}\0${instance.job.jobId}`) ?? 'unknown';
+      return {
+        id: producerId(instance), workflowPath: instance.workflow.path, jobId: instance.job.jobId,
+        axes: instance.axes, checkName: instance.checkName, provider: provider(instance),
+        policy: mergePolicy,
+        coverage: direct.length ? 'direct' : aggregate.length ? 'required-aggregate' :
+          mergePolicy === 'advisory' ? 'advisory' : mergePolicy === 'unknown' ? 'unknown' : 'uncovered',
+      };
+    });
+    const model = {
+      repository: input.subject.repository,
+      sourceSha: input.subject.sha,
+      targetRef: input.subject.ref,
+      analysisContract: input.analysis.contract,
+      scope: workflows.map((workflow) => workflow.path),
+      workflows: input.workflows.map((workflow) => ({ path: workflow.path,
+        digest: createHash('sha256').update(workflow.text, 'utf8').digest('hex') })),
+      producers,
+      gates: gateCoverage.map((gate) => ({ id: gateId(gate), workflowPath: gate.workflow.path,
+        jobId: gate.job.jobId, checkName: gate.checkName,
+        requiredIntegrationId: gate.gate.integrationId, provider: provider(gate),
+        sources: gateSources(gate) })),
+      edges, links,
+      policyFingerprint: canonicalDigest({
+        jobs: [...policy].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
+        gates: [...gatePolicies].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
+        requirements: gateCoverage.map((gate) => [gate.gate.context, gate.gate.integrationId,
+          gateSources(gate)]).sort((a, b) => {
+          const left = JSON.stringify(a);
+          const right = JSON.stringify(b);
+          return left < right ? -1 : left > right ? 1 : 0;
+        }),
+      }),
+      observation: {
+        sourceSha: input.subject.sha,
+        analyzedAt: input.analysis.analyzedAt,
+        subjectKind: input.subject.kind,
+        evidenceKind: 'observation-time',
+        sources: safeSources(input).sort((a, b) => {
+          const left = JSON.stringify(a);
+          const right = JSON.stringify(b);
+          return left < right ? -1 : left > right ? 1 : 0;
+        }),
+        runs: input.observedRuns.map((run) => ({ runId: run.runId, workflowPath: run.workflowPath,
+          sha: run.sha, ...(run.runAttempt === undefined ? {} : { runAttempt: run.runAttempt }) }))
+          .sort((a, b) => a.runId < b.runId ? -1 : a.runId > b.runId ? 1 : 0),
+        scope: normalizedScope(input),
+        policyInput: normalizedPolicyInput(input),
+      },
+    };
+    try {
+      coverageSnapshot = buildCoverageSnapshot(model);
+    } catch (error) {
+      if (!(error instanceof RangeError && error.message === 'COVERAGE_RESOURCE_LIMIT')) throw error;
+      return collectionError(input, 'COVERAGE_RESOURCE_LIMIT', 'Coverage explanation resource limit exceeded', {
+        unresolvedPremises: ['COVERAGE_RESOURCE_LIMIT'],
+      });
+    }
+  }
   const allRunIds = [...new Set(input.observedRuns.map((run) => run.runId))];
   const results = [];
   const instancesByJob = new Map();
@@ -1204,7 +1257,7 @@ export async function auditControlPlane(input) {
 
   const precedence = ['finding', 'policy-review', 'unknown'];
   const status = precedence.find((candidate) => results.some((result) => result.status === candidate)) ?? 'unknown';
-  return {
+  const report = {
     version: 1,
     status,
     subject: safeSubject(input),
@@ -1217,4 +1270,30 @@ export async function auditControlPlane(input) {
     }],
     provenance: provenance(input, gatePolicies),
   };
+  if (coverageSnapshot) {
+    report.coverageSnapshot = coverageSnapshot;
+    report.suggestions = report.results.filter((result) => result.status === 'finding').flatMap((finding) => {
+      const coordinates = {
+        producer: finding.producer, evidenceCoordinates: finding.evidenceCoordinates,
+        requiredContexts: finding.requiredContexts, activeGates: finding.activeGates,
+      };
+      const suggestions = [{ kind: 'review-required-context', requires_review: true,
+        coordinates: { ...coordinates, proposedContext: finding.producer.checkName,
+          proposedProvider: finding.producer.integrationId },
+        prerequisites: ['Review exact producer check and provider against active target gates'],
+        reaudit_required: true }];
+      for (const gate of gateCoverage.filter((item) => item.workflow.path === finding.producer.workflowPath &&
+        item.job.needs.length > 0)) {
+        suggestions.push({ kind: 'review-aggregate-propagation', requires_review: true,
+          coordinates: { ...coordinates, aggregate: { workflowPath: gate.workflow.path,
+            jobId: gate.job.jobId, checkName: gate.checkName,
+            integrationId: gate.check.provider.integrationId } },
+          prerequisites: ['Review aggregate dependency on this producer',
+            'Review explicit all-needs failure propagation evidence for the exact aggregate'],
+          reaudit_required: true });
+      }
+      return suggestions;
+    });
+  }
+  return report;
 }

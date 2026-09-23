@@ -1,9 +1,9 @@
-# Prepare the current source candidate
+# Prepare v0.2.0-experimental.2
 
 This route uses an existing checkout with Node.js 24, npm and Git available.
 It builds a clean checkout of https://github.com/nowwcastle-sudo/gategraph-ci
-on branch main. The existing v0.2.0-experimental.1 release remains immutable;
-later source builds include the Korean README and must not replace that asset.
+at the selected source commit. The existing v0.2.0-experimental.1 release remains immutable;
+this `.2` build includes the Korean README and must not replace the `.1` assets.
 Use synthetic data only.
 The package remains private to block npm publication; GitHub source and release
 assets are public. Anonymous asset download is documented in the README.
@@ -27,7 +27,7 @@ $gategraphPackExit = $LASTEXITCODE
 if ($gategraphPackExit -ne 0) { throw 'Packaging failed; preserve this directory and logs.' }
 $gategraphPack = @(($gategraphPackJson -join [Environment]::NewLine) | ConvertFrom-Json)
 if ($gategraphPack.Count -ne 1) { throw 'Expected one package manifest.' }
-$gategraphExpected = @('LICENSE','README.md','README.ko.md','package.json','bin/gategraph.mjs','src/audit-control-plane.mjs','src/demo-evidence.mjs','src/gh-adapter.mjs','src/policy-input.mjs') | Sort-Object
+$gategraphExpected = @('LICENSE','README.md','README.ko.md','package.json','bin/gategraph.mjs','src/audit-control-plane.mjs','src/demo-evidence.mjs','src/gh-adapter.mjs','src/policy-input.mjs','src/static-matrix.mjs','src/coverage-snapshot.mjs','src/report-input.mjs') | Sort-Object
 $gategraphActual = @($gategraphPack[0].files.path) | Sort-Object
 if (($gategraphActual -join ',') -cne ($gategraphExpected -join ',')) { throw 'Unexpected package member set.' }
 $gategraphTarball = Join-Path $gategraphCandidate $gategraphPack[0].filename
@@ -39,11 +39,11 @@ Get-Content -LiteralPath ($gategraphTarball + '.sha256')
 Get-Content -LiteralPath (Join-Path $gategraphCandidate 'source.txt')
 ```
 
-Current source builds have exactly nine files including LICENSE and README.ko.md.
+The `.2` candidate has exactly 12 files including LICENSE and README.ko.md.
 npm includes README variants automatically. The already published release has
-eight files and remains unchanged. The package metadata still yields the filename
-gategraph-ci-0.2.0-experimental.1.tgz; source.txt and the checksum identify a fresh
-local build. Do not upload it over the fixed release asset.
+eight files and remains unchanged. The package metadata yields the filename
+gategraph-ci-0.2.0-experimental.2.tgz; source.txt and the checksum identify a fresh
+local build. Do not upload it over the fixed `.1` release asset.
 Keep source.txt, this candidate's checksum and the archive together. A locally produced checksum is an identity record, not
 independent publisher authentication.
 
@@ -90,6 +90,19 @@ $gategraphOutput
 Exit `2` is expected because the fixture contains an uncovered voting failure
 path. The installed demo needs no network, credentials, source checkout or
 test helper. It does not authorize a real merge or demonstrate customer value.
+
+The installed `.2` CLI also supports `demo --explain` and `compare`. Save a new
+synthetic snapshot and compare it with itself after installation succeeds:
+
+```powershell
+$gategraphExplained = Join-Path $gategraphCandidate 'gategraph-explained.json'
+& (Join-Path $gategraphInstall 'node_modules/.bin/gategraph.cmd') demo --explain | Out-File -LiteralPath $gategraphExplained -Encoding utf8 -NoClobber -ErrorAction Stop
+$gategraphExplainExit = $LASTEXITCODE
+if ($gategraphExplainExit -ne 2) { throw 'Expected synthetic finding exit 2; preserve output and stop.' }
+& (Join-Path $gategraphInstall 'node_modules/.bin/gategraph.cmd') compare --before $gategraphExplained --after $gategraphExplained
+$gategraphCompareExit = $LASTEXITCODE
+if ($gategraphCompareExit -ne 0) { throw 'Comparison failed; preserve both outputs and stop.' }
+```
 
 ## Publication boundary
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, access } from 'node:fs/promises';
+import { mkdtemp, readFile, access, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -11,6 +11,7 @@ const repositoryDir = fileURLToPath(new URL('..', import.meta.url));
 const expectedFiles = [
   'LICENSE', 'README.md', 'README.ko.md', 'bin/gategraph.mjs', 'package.json', 'src/audit-control-plane.mjs',
   'src/demo-evidence.mjs', 'src/gh-adapter.mjs', 'src/policy-input.mjs',
+  'src/static-matrix.mjs', 'src/coverage-snapshot.mjs', 'src/report-input.mjs',
 ];
 
 test('fresh tarball installs its exact runtime and runs without checkout, credentials, or gh', async (t) => {
@@ -26,7 +27,7 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
   const manifests = JSON.parse(packed.stdout);
   assert.equal(manifests.length, 1);
   const [manifest] = manifests;
-  assert.equal(manifest.filename, 'gategraph-ci-0.2.0-experimental.1.tgz');
+  assert.equal(manifest.filename, 'gategraph-ci-0.2.0-experimental.2.tgz');
   assert.deepEqual(manifest.files.map((file) => file.path).sort(), [...expectedFiles].sort());
   const tarball = join(packageDir, manifest.filename);
   const sha256 = createHash('sha256').update(await readFile(tarball)).digest('hex');
@@ -41,7 +42,7 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
   const installedRoot = join(installDir, 'node_modules', 'gategraph-ci');
   const installedManifest = JSON.parse(await readFile(join(installedRoot, 'package.json'), 'utf8'));
   assert.equal(installedManifest.name, 'gategraph-ci');
-  assert.equal(installedManifest.version, '0.2.0-experimental.1');
+  assert.equal(installedManifest.version, '0.2.0-experimental.2');
   assert.equal(installedManifest.private, true);
   assert.deepEqual(installedManifest.dependencies, { yaml: '2.9.0' });
 
@@ -74,10 +75,30 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
       });
       assert.equal(result.status, 0);
       assert.equal(result.stderr, '');
-      if (option === '--version') assert.equal(result.stdout, 'gategraph-ci 0.2.0-experimental.1\n');
+      if (option === '--version') assert.equal(result.stdout, 'gategraph-ci 0.2.0-experimental.2\n');
       else assert.match(result.stdout, /First task: gategraph demo/);
     });
   }
+  await t.test('installed explain and compare use only packaged modules and saved local reports', async () => {
+    const explained = spawnSync(process.execPath, [cli, 'demo', '--explain'], {
+      cwd: unrelatedDir, encoding: 'utf8', windowsHide: true, env: runtimeEnv,
+    });
+    assert.equal(explained.status, 2);
+    assert.equal(explained.stderr, '');
+    assert.equal(JSON.parse(explained.stdout).coverageSnapshot.complete, true);
+    const before = join(unrelatedDir, 'before.json');
+    const after = join(unrelatedDir, 'after.json');
+    await writeFile(before, explained.stdout, { flag: 'wx' });
+    await writeFile(after, explained.stdout, { flag: 'wx' });
+    const compared = spawnSync(process.execPath, [cli, 'compare', '--before', before, '--after', after], {
+      cwd: unrelatedDir, encoding: 'utf8', windowsHide: true, env: runtimeEnv,
+    });
+    assert.equal(compared.status, 0);
+    assert.equal(compared.stderr, '');
+    assert.deepEqual(JSON.parse(compared.stdout).changes, []);
+    assert.deepEqual(await readFile(before, 'utf8'), explained.stdout);
+    assert.deepEqual(await readFile(after, 'utf8'), explained.stdout);
+  });
   if (process.platform === 'win32') {
     await t.test('installed Windows command shim runs the documented first task', async () => {
       const shim = join(installDir, 'node_modules', '.bin', 'gategraph.cmd');

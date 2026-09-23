@@ -137,7 +137,7 @@ function appendFailure(next, reasonCode) {
 
 export function createPolicyErrorInput({ repository, sha, targetRef }, reasonCode) {
   return appendFailure({
-    analysis: { analyzer: 'gategraph-ci', version: '0.2.0-experimental.1', contract: 'gategraph-audit/v1', analyzedAt: new Date().toISOString() },
+    analysis: { analyzer: 'gategraph-ci', version: '0.2.0-experimental.2', contract: 'gategraph-audit/v1', analyzedAt: new Date().toISOString() },
     subject: { kind: 'github', id: `${repository}@${sha}`, repository, sha, ref: targetRef },
     workflows: [], observedRuns: [], controlPlane: { rulesets: [], classicProtection: { state: 'unknown' } },
     policy: { jobs: [] }, collection: { complete: false, sources: [] },
