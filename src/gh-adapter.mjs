@@ -31,7 +31,7 @@ const ENDPOINT_ALLOWLIST = [
 ];
 const ANALYSIS_IDENTITY = Object.freeze({
   analyzer: 'gategraph-ci',
-  version: '0.2.0-experimental.1',
+  version: '0.2.0-experimental.2',
   contract: 'gategraph-audit/v1',
 });
 

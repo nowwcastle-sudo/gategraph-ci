@@ -1,6 +1,6 @@
 # Local coverage explanation and comparison
 
-This describes the current source candidate, not the immutable `v0.2.0-experimental.1` release archive. Use Node.js 24 in a checkout with the pinned dependency installed, or use a newly packed and installed candidate. The synthetic demo needs no GitHub account or network at runtime.
+This describes the `v0.2.0-experimental.2` candidate, not the immutable `v0.2.0-experimental.1` release archive. Use Node.js 24 in a checkout with the pinned dependency installed, or use a newly packed and installed `.2` candidate. The synthetic demo needs no GitHub account or network at runtime.
 
 Run each PowerShell line in the checkout root. The first command intentionally exits `2`: its synthetic fixture contains a finding. The saved JSON files are new; no earlier report is overwritten.
 

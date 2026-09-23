@@ -12,7 +12,7 @@ export function createDemoInput(scenario = 'finding') {
   const complete = scenario !== 'collection-error';
   return {
     analysis: {
-      analyzer: 'gategraph-ci', version: '0.2.0-experimental.1',
+      analyzer: 'gategraph-ci', version: '0.2.0-experimental.2',
       contract: 'gategraph-audit/v1', analyzedAt: '2026-09-05T00:00:00.000Z',
     },
     subject: {

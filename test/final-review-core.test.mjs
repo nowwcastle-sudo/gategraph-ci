@@ -97,7 +97,7 @@ jobs:
   return {
     analysis: {
       analyzer: 'gategraph-ci',
-      version: '0.2.0-experimental.1',
+      version: '0.2.0-experimental.2',
       contract: 'gategraph-audit/v1',
       analyzedAt: '2026-09-05T00:00:00.000Z',
     },

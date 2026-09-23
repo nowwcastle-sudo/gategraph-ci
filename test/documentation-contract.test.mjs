@@ -117,7 +117,7 @@ test('experimental release documentation keeps the first-use safety contract', a
   const combined = `${readme}\n${runbook}`;
 
   assert.match(readme, /Invoke-WebRequest/);
-  assert.match(readme, /releases\/download\/v0\.2\.0-experimental\.1/);
+  assert.match(readme, /releases\/download\/v0\.2\.0-experimental\.2/);
   assert.match(readme, /Get-FileHash/);
   assert.match(readme, /--offline/);
   assert.match(runbook, /preserve.*logs/i);

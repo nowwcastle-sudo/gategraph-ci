@@ -5,7 +5,7 @@ import { expandStaticMatrix } from './static-matrix.mjs';
 import { buildCoverageSnapshot, canonicalDigest } from './coverage-snapshot.mjs';
 
 const ANALYZER = 'gategraph-ci';
-const ANALYZER_VERSION = '0.2.0-experimental.1';
+const ANALYZER_VERSION = '0.2.0-experimental.2';
 const ANALYSIS_CONTRACT = 'gategraph-audit/v1';
 const ANALYZED_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SHA_40 = /^[0-9a-f]{40}$/i;

@@ -27,7 +27,7 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
   const manifests = JSON.parse(packed.stdout);
   assert.equal(manifests.length, 1);
   const [manifest] = manifests;
-  assert.equal(manifest.filename, 'gategraph-ci-0.2.0-experimental.1.tgz');
+  assert.equal(manifest.filename, 'gategraph-ci-0.2.0-experimental.2.tgz');
   assert.deepEqual(manifest.files.map((file) => file.path).sort(), [...expectedFiles].sort());
   const tarball = join(packageDir, manifest.filename);
   const sha256 = createHash('sha256').update(await readFile(tarball)).digest('hex');
@@ -42,7 +42,7 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
   const installedRoot = join(installDir, 'node_modules', 'gategraph-ci');
   const installedManifest = JSON.parse(await readFile(join(installedRoot, 'package.json'), 'utf8'));
   assert.equal(installedManifest.name, 'gategraph-ci');
-  assert.equal(installedManifest.version, '0.2.0-experimental.1');
+  assert.equal(installedManifest.version, '0.2.0-experimental.2');
   assert.equal(installedManifest.private, true);
   assert.deepEqual(installedManifest.dependencies, { yaml: '2.9.0' });
 
@@ -75,7 +75,7 @@ test('fresh tarball installs its exact runtime and runs without checkout, creden
       });
       assert.equal(result.status, 0);
       assert.equal(result.stderr, '');
-      if (option === '--version') assert.equal(result.stdout, 'gategraph-ci 0.2.0-experimental.1\n');
+      if (option === '--version') assert.equal(result.stdout, 'gategraph-ci 0.2.0-experimental.2\n');
       else assert.match(result.stdout, /First task: gategraph demo/);
     });
   }

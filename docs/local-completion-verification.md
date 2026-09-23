@@ -1,6 +1,6 @@
-# Local completion verification — current source candidate
+# Local completion verification — historical source checkpoints
 
-This table maps approved requirements to source and runnable evidence. Counts and exits are filled from this candidate's local checks; unexecuted external checks remain explicitly open. Synthetic fixtures do not establish live adoption or private-repository operation.
+This table preserves local evidence from the pre-`0.2.0-experimental.2` source checkpoints. Counts, exits, commits and hashes below belong to those identified revisions; they are not verification of the `.2` candidate. Unexecuted external checks remain explicitly open. Synthetic fixtures do not establish live adoption or private-repository operation.
 
 | Requirement | Source and behavior | Local evidence | Result |
 |---|---|---|---|
@@ -22,7 +22,7 @@ This table maps approved requirements to source and runnable evidence. Counts an
 | `npm audit --omit=dev` | 0 vulnerabilities; exit 0 | Passed; no dependency change. |
 | Remote two-Windows CI and live/private GitHub evidence | Not run | Requires separately authorized publication and identified evidence coordinates/permissions. |
 
-The immutable historical release remains eight files; this current source candidate is twelve files. The source archive, installed package and any future remote run must be identified by their own commit/artifact hashes. A local pack or fixture test does not alter historical assets or prove remote CI.
+The immutable `v0.2.0-experimental.1` release remains eight files; the later source candidate described here was twelve files. The source archive, installed package and any future remote run must be identified by their own commit/artifact hashes. A local pack or fixture test does not alter historical assets or prove remote CI.
 
 ## Final local review checkpoint
 
@@ -41,7 +41,7 @@ Critical/Important breakage.
 | Candidate membership and offline use | Exact 12 members; installed demo/explain/compare and Windows command shim passed | Same fresh final package. |
 | Dedicated static security diff review | Six changed source files reviewed; zero reportable findings; canonical coverage **partial** with one deferred discovery-accounting item | Sealed scan `b737fb57-5af6-453b-8311-d3db254711d4` at `28fd4d1`. |
 
-Final candidate TGZ SHA-256:
+Historical candidate TGZ SHA-256:
 `0d599a8358340c35f93c71774f4f3a5316a3a36137a402819ded237b7a8c29be`.
 The README-only correction leaves `src`, `bin`, package metadata and lockfile
 identical to the security-reviewed runtime. The complete suite was subsequently

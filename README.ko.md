@@ -8,12 +8,12 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 
 라이선스는 Apache License 2.0입니다. [LICENSE](LICENSE)를 참고하세요.
 소스는 [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci)의 `main` 브랜치입니다.
-릴리스는 `v0.2.0-experimental.1`, 패키지는 `gategraph-ci@0.2.0-experimental.1`입니다.
+릴리스 목표는 `v0.2.0-experimental.2`, 패키지는 `gategraph-ci@0.2.0-experimental.2`입니다.
 실수로 npm에 게시하지 않도록 패키지의 `private: true`를 유지합니다. 공개 소스와 GitHub 릴리스 다운로드는 npm 게시 없이 사용할 수 있습니다.
 
-저장소 문서는 릴리스 압축 파일보다 최신일 수 있습니다. 기존 `v0.2.0-experimental.1` 배포 파일에는 한국어판이 없으며 저장소에서 읽을 수 있습니다. 현재 소스 후보를 묶으면 `README.ko.md`와 새 실행 모듈 3개를 포함해 12개 파일이 됩니다. 이 소스 변경은 기존 릴리스 파일이나 체크섬을 바꾸지 않습니다.
+`v0.2.0-experimental.2` 후보를 묶으면 `README.ko.md`와 현재 실행 모듈을 포함해 12개 파일이 됩니다. 이미 공개된 `v0.2.0-experimental.1`은 한국어판이 없는 8개 파일의 과거 릴리스이며 기존 파일과 체크섬을 그대로 유지합니다.
 
-아래의 `--explain`과 `compare`는 현재 소스에서 만든 후보용 명령입니다. 고정된 `v0.2.0-experimental.1` 다운로드에서는 지원하지 않습니다.
+`.2` 후보는 아래의 `--explain`과 `compare`를 지원합니다. 기존 `.1` 다운로드에서는 지원하지 않습니다.
 
 ## 명령별 기능
 
@@ -51,17 +51,17 @@ if ($gategraphCompareExit -ne 0) { throw '비교할 수 없습니다. 보고서�
 
 ## 로그인 없이 실험 릴리스 다운로드
 
-Node.js 24와 npm이 필요합니다. PowerShell의 같은 창에서 한 줄씩 실행하세요.
-공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
+`v0.2.0-experimental.2`와 파일이 게시된 뒤 Node.js 24와 npm으로 실행하세요. PowerShell의 같은 창에서 한 줄씩 실행합니다.
+게시된 공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 $gategraphAssets = Join-Path ([IO.Path]::GetTempPath()) ('gategraph-release-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $gategraphAssets -ErrorAction Stop | Out-Null
-$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.1'
-$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.1.tgz'
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz') -OutFile $gategraphTarball
-Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.1.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
+$gategraphRelease = 'https://github.com/nowwcastle-sudo/gategraph-ci/releases/download/v0.2.0-experimental.2'
+$gategraphTarball = Join-Path $gategraphAssets 'gategraph-ci-0.2.0-experimental.2.tgz'
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz') -OutFile $gategraphTarball
+Invoke-WebRequest -Uri ($gategraphRelease + '/gategraph-ci-0.2.0-experimental.2.tgz.sha256') -OutFile ($gategraphTarball + '.sha256')
 $gategraphHash = ((Get-Content -LiteralPath ($gategraphTarball + '.sha256') -Raw).Trim() -split '\s+')[0]
 if ($gategraphHash -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid checksum file; stop.' }
 if ((Get-FileHash -LiteralPath $gategraphTarball -Algorithm SHA256).Hash -ine $gategraphHash) { throw 'Checksum mismatch; stop and retain downloads.' }
@@ -228,7 +228,7 @@ gategraph audit --repo owner/name --sha 40-hex-commit --run-id ID --target-ref r
 
 ## 지원하는 워크플로와 자원 상한
 
-현재 소스 후보는 워크플로 텍스트를 데이터로 파싱합니다. 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 최대 4개의 정적 matrix 축을 지원합니다. 축 전체의 조합은 작업당 128개 이하여야 합니다. 값은 문자열·숫자·불리언만 허용하며, 모든 축을 작업 이름에서 `matrix.KEY`로 참조해야 하고 펼친 이름이 서로 달라야 합니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다. 기존 `v0.2.0-experimental.1` 다운로드는 단일 축만 지원하므로, 확장된 범위를 쓰려면 소스 후보가 필요합니다.
+`.2` 후보는 워크플로 텍스트를 데이터로 파싱합니다. 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 최대 4개의 정적 matrix 축을 지원합니다. 축 전체의 조합은 작업당 128개 이하여야 합니다. 값은 문자열·숫자·불리언만 허용하며, 모든 축을 작업 이름에서 `matrix.KEY`로 참조해야 하고 펼친 이름이 서로 달라야 합니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다. 기존 `v0.2.0-experimental.1` 다운로드는 단일 축만 지원합니다.
 
 재사용 워크플로 작업(`jobs.<id>.uses`), 작업 수준 `continue-on-error`, 동적 matrix와 include/exclude matrix, 그 밖의 작업 이름 표현식과 작업 조건은 지원 범위 밖입니다. 지원하지 않거나 모호한 증거는 `collection-error`로 처리합니다. 임의의 Actions 표현식을 평가하거나 셸 단계를 실행해 동작을 알아내지 않습니다. 트리거 이름은 파싱하지만 이벤트·경로 조건 전체를 시뮬레이션하지는 않습니다.
 

@@ -44,7 +44,7 @@ for (const [scenario, expectedExit] of [
     assert.equal(report.subject.id, `synthetic-demo-${scenario}`);
     assert.equal(report.subject.kind, 'fixture');
     assert.equal(report.subject.repository, 'fixture/synthetic-demo');
-    assert.equal(report.provenance.version, '0.2.0-experimental.1');
+    assert.equal(report.provenance.version, '0.2.0-experimental.2');
   });
 }
 
