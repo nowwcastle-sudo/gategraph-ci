@@ -8,12 +8,12 @@ GateGraph CI는 GitHub의 병합 조건을 읽고 점검하는 실험적 진단 
 
 라이선스는 Apache License 2.0입니다. [LICENSE](LICENSE)를 참고하세요.
 소스는 [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci)의 `main` 브랜치입니다.
-릴리스 목표는 `v0.2.0-experimental.2`, 패키지는 `gategraph-ci@0.2.0-experimental.2`입니다.
+공개된 릴리스는 `v0.2.0-experimental.2`, 패키지는 `gategraph-ci@0.2.0-experimental.2`입니다.
 실수로 npm에 게시하지 않도록 패키지의 `private: true`를 유지합니다. 공개 소스와 GitHub 릴리스 다운로드는 npm 게시 없이 사용할 수 있습니다.
 
-`v0.2.0-experimental.2` 후보 패키지에는 `README.ko.md`와 현재 실행 모듈을 포함해 파일 12개가 들어갑니다. 이미 공개된 `v0.2.0-experimental.1`은 한국어판이 없는 8개 파일의 과거 릴리스입니다. 그 파일과 체크섬은 그대로 유지합니다.
+공개된 `v0.2.0-experimental.2` 패키지에는 `README.ko.md`와 실행 모듈을 포함해 파일 12개가 들어갑니다. 이전 `v0.2.0-experimental.1`은 파일 8개로 이루어진 과거 릴리스이며 한국어판이 없습니다. 그 파일과 체크섬은 그대로 유지합니다.
 
-`.2` 후보는 아래의 `--explain`과 `compare`를 지원합니다. 기존 `.1` 다운로드에서는 지원하지 않습니다.
+`.2` 릴리스는 아래의 `--explain`과 `compare`를 지원합니다. 기존 `.1` 다운로드에서는 지원하지 않습니다.
 
 ## 명령별 기능
 
@@ -51,7 +51,7 @@ if ($gategraphCompareExit -ne 0) { throw '비교할 수 없습니다. 보고서�
 
 ## 로그인 없이 실험 릴리스 다운로드
 
-`v0.2.0-experimental.2` 릴리스와 파일이 게시되면 Node.js 24와 npm을 준비하세요. 아래 PowerShell 명령은 같은 창에서 한 줄씩 실행합니다.
+`v0.2.0-experimental.2` 릴리스 파일은 이미 공개되어 있습니다. Node.js 24와 npm을 준비하고, 아래 PowerShell 명령을 같은 창에서 한 줄씩 실행하세요.
 게시된 공개 파일 다운로드에는 GitHub 로그인이 필요 없습니다. 다운로드 실패나 체크섬 불일치가 생기면 중단하고 해당 폴더를 보존하세요. 이전 파일을 덮어쓰지 마세요.
 
 ```powershell
@@ -228,7 +228,7 @@ gategraph audit --repo owner/name --sha 40-hex-commit --run-id ID --target-ref r
 
 ## 지원하는 워크플로와 자원 상한
 
-`.2` 후보는 워크플로 텍스트를 데이터로 파싱합니다. 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 최대 4개의 정적 matrix 축을 지원합니다. 축 전체의 조합은 작업당 128개 이하여야 합니다. 값은 문자열·숫자·불리언만 허용하며, 모든 축을 작업 이름에서 `matrix.KEY`로 참조해야 하고 펼친 이름이 서로 달라야 합니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다. 기존 `v0.2.0-experimental.1` 다운로드는 단일 축만 지원합니다.
+`.2` 릴리스는 워크플로 텍스트를 데이터로 파싱합니다. 정적 작업 이름(생략 시 작업 ID), 순환이 없는 명시적 `needs` 의존 관계, 최대 4개의 정적 matrix 축을 지원합니다. 축 전체의 조합은 작업당 128개 이하여야 합니다. 값은 문자열·숫자·불리언만 허용하며, 모든 축을 작업 이름에서 `matrix.KEY`로 참조해야 하고 펼친 이름이 서로 달라야 합니다. 작업 수준 조건이 있으면 정확히 `always()`여야 합니다. 기존 `v0.2.0-experimental.1` 다운로드는 단일 축만 지원합니다.
 
 재사용 워크플로 작업(`jobs.<id>.uses`), 작업 수준 `continue-on-error`, 동적 matrix와 include/exclude matrix, 그 밖의 작업 이름 표현식과 작업 조건은 지원 범위 밖입니다. 지원하지 않거나 모호한 증거는 `collection-error`로 처리합니다. 임의의 Actions 표현식을 평가하거나 셸 단계를 실행해 동작을 알아내지 않습니다. 트리거 이름은 파싱하지만 이벤트·경로 조건 전체를 시뮬레이션하지는 않습니다.
 
@@ -238,7 +238,7 @@ gategraph audit --repo owner/name --sha 40-hex-commit --run-id ID --target-ref r
 | 워크플로당 작업 수 | 128 |
 | 선언한 작업 이름 길이 | 1,024 |
 | 지원하는 matrix 축의 값 개수 | 128 |
-| `.2` 후보의 정적 matrix 축 개수 | 4 |
+| `.2` 릴리스의 정적 matrix 축 개수 | 4 |
 | 작업당 전체 matrix 조합 수 | 128 |
 | 문자열로 바꾼 matrix 값 길이 | 256 |
 | 확장된 검사 이름 하나의 길이 | 2,048 |

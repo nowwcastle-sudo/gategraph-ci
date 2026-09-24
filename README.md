@@ -8,12 +8,12 @@ Use it to investigate whether a job that should block a merge can fail while Git
 
 License: Apache License 2.0. See [LICENSE](LICENSE).
 Source: [nowwcastle-sudo/gategraph-ci](https://github.com/nowwcastle-sudo/gategraph-ci), branch `main`.
-Release target: `v0.2.0-experimental.2`; package: `gategraph-ci@0.2.0-experimental.2`.
+Public release: `v0.2.0-experimental.2`; package: `gategraph-ci@0.2.0-experimental.2`.
 The package stays `private: true` to prevent accidental npm publication; public source and GitHub release downloads do not require an npm publication.
 
-The `v0.2.0-experimental.2` candidate packs 12 files, including `README.ko.md` and the current runtime modules. The published `v0.2.0-experimental.1` archive remains an eight-file historical release with its original checksum and without the Korean edition.
+The published `v0.2.0-experimental.2` package contains 12 files, including `README.ko.md` and the runtime modules. The `v0.2.0-experimental.1` archive remains an eight-file historical release with its original checksum and without the Korean edition.
 
-The `.2` candidate supports `--explain` and `compare`. The historical `.1` download does not.
+The `.2` release supports `--explain` and `compare`. The historical `.1` download does not.
 
 ## What the commands do
 
@@ -51,7 +51,7 @@ Workflow parsing and name expansion have [local resource ceilings](https://githu
 
 ## Download the experimental release anonymously
 
-After `v0.2.0-experimental.2` and its assets are published, use Node.js 24 and npm. In PowerShell, run each line in the same session.
+The `v0.2.0-experimental.2` assets are published. Use Node.js 24 and npm. In PowerShell, run each line in the same session.
 No GitHub sign-in is needed for published public assets. Stop on a failed download
 or checksum mismatch and retain the directory; never overwrite an old artifact.
 
@@ -237,7 +237,7 @@ Reports can contain repository names, SHAs, branch names and run/workflow identi
 
 ## Supported workflow subset and limits
 
-The `.2` candidate parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and up to four static matrix axes with at most 128 combinations in total. Values must be scalar strings, numbers or booleans; every axis must appear as `matrix.KEY` in the job name, and expanded names must be unique. A job-level condition, when present, must be the literal `always()`. The historical `v0.2.0-experimental.1` download supports only one axis.
+The `.2` release parses workflow text as data. It supports static job names (falling back to job IDs), explicit acyclic `needs` dependencies, and up to four static matrix axes with at most 128 combinations in total. Values must be scalar strings, numbers or booleans; every axis must appear as `matrix.KEY` in the job name, and expanded names must be unique. A job-level condition, when present, must be the literal `always()`. The historical `v0.2.0-experimental.1` download supports only one axis.
 
 Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, dynamic or include/exclude matrices, other job-name expressions and other job conditions are outside this subset. Unsupported or ambiguous evidence returns `collection-error`; the tool does not evaluate arbitrary Actions expressions or execute shell steps to discover behavior. Trigger names are parsed, but GateGraph is not a full event/path-condition simulator.
 
@@ -246,7 +246,7 @@ Reusable-workflow jobs (`jobs.<id>.uses`), job-level `continue-on-error`, dynami
 | UTF-8 text per workflow / all workflows | 1 MiB / 4 MiB |
 | Jobs per workflow | 128 |
 | Declared job-name length | 1,024 |
-| Static matrix axes in the current source candidate | 4 |
+| Static matrix axes in the `.2` release | 4 |
 | Total matrix combinations per job | 128 |
 | Values per supported matrix axis | 128 |
 | Matrix value length after string conversion | 256 |
